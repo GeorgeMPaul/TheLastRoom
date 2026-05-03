@@ -11,13 +11,23 @@
  *
  * Mesh-name reality (May 2026):
  *   level-02.glb ships with the L1 room shell plus L2-specific objects:
- *   Donut, Culprit (visitor silhouette), Mira / Mira.001 (alive,
- *   animated), Saucer.001 / Cup.001 / Tea.001 (visitor's white cup),
- *   Saucer.002, and handbag / Handbag / HandbagBrand (the Briq tote).
- *   Sibling fan-out (Saucer/Tea -> Cup, Saucer.001/Tea.001 -> Cup.001,
- *   etc.) is not authored yet — the picker only resolves the canonical
- *   mesh names listed below. If testers click a sibling and get
- *   nothing, fan it to the matching clue in a follow-up.
+ *   Culprit (visitor silhouette), Mira / Mira.001 (alive, animated),
+ *   Tea.001 (visitor's tea — the visitor's cup mesh itself was removed
+ *   in the May-2026 rebake), Saucer / Saucer.002, and
+ *   handbag / Handbag / Handbag.001 (the Briq tote).
+ *
+ *   Three meshes the earlier rebake of this file authored against are
+ *   no longer in the GLB: `Cup` (Mira's blue mug), `Cup.001` (visitor's
+ *   white mug), and `Donut`. Mira's-cup clue is repointed to `Saucer`
+ *   (the only cup-related mesh left); visitor's-cup clue is repointed
+ *   to `Tea.001`. The donut clue was removed entirely (no fallback
+ *   mesh) and `requiredClues` now uses the laptop's unsent Veer email
+ *   as its second gating clue alongside the cup residue.
+ *
+ *   Sibling fan-out (Tea/Saucer.002 -> Saucer, etc.) is not authored
+ *   yet — the picker only resolves the canonical mesh names listed
+ *   below. If testers click a sibling and get nothing, fan it to the
+ *   matching clue in a follow-up.
  */
 
 export default {
@@ -57,15 +67,18 @@ export default {
 
     // ─── Investigation clues ──────────────────────────────────────────
 
-    // Mira's blue enamel mug. Powder residue near the rim — added
-    // from above into liquid that was already there.
-    'Cup': {
-      label: 'Mira\'s cup (blue enamel)',
+    // Mira's cup, sitting on its saucer on the rug. Powder residue
+    // near the rim — added from above into liquid that was already
+    // there. The Cup mesh was removed in the May-2026 GLB rebake;
+    // we route the residue clue to the Saucer mesh as the closest
+    // remaining cup-zone pickable.
+    'Saucer': {
+      label: 'Mira\'s cup and saucer',
       reveal: {
         type: 'text-with-image',
         title: 'A pale powder along the rim',
         body:
-          'Her usual blue enamel mug, sitting on the rug. Faint pale powder clings to the inside of the rim — ' +
+          'Her usual mug, on its saucer on the rug. Faint pale powder clings to the inside of the rim — ' +
           'not at the bottom where tea dregs settle, but near the top. Something was dropped in from above ' +
           'while there was already liquid in the cup, and dissolved as it fell.',
         image: null,
@@ -73,36 +86,22 @@ export default {
       clueId: 'clue-l2-cup-residue',
     },
 
-    // The visitor's cup. White ceramic, no residue. The killer used
-    // a clean cup.
-    'Cup.001': {
-      label: 'White ceramic mug (visitor\'s)',
+    // The visitor's cup. White ceramic, no residue — the killer drank
+    // from a clean cup. The Cup.001 mesh was removed in the May-2026
+    // rebake; we route this clue to Tea.001 (the visible tea in the
+    // visitor's spot) as the closest remaining pickable.
+    'Tea.001': {
+      label: 'Visitor\'s tea',
       reveal: {
         type: 'text-with-image',
-        title: 'Clean inside',
+        title: 'Clean cup, clean tea',
         body:
-          'A plain white ceramic mug from Mira\'s kitchen — the one she pulls out for guests. ' +
-          'It\'s closer to where the visitor sat. Nothing unusual inside it: no powder, no film. ' +
-          'Whatever was in Mira\'s cup wasn\'t in this one.',
+          'The tea on the visitor\'s side of the rug — in a plain white ceramic mug Mira pulls out for guests. ' +
+          'Nothing unusual inside it: no powder, no film. Whatever was in Mira\'s cup wasn\'t in this one. ' +
+          'The visitor knew which mug was which.',
         image: null,
       },
       clueId: 'clue-l2-visitor-cup',
-    },
-
-    // Donut eaten from the top. Mira eats from the bottom up — her
-    // Instagram has the receipts. The visitor ate this.
-    'Donut': {
-      label: 'Half-eaten donut',
-      reveal: {
-        type: 'text-with-image',
-        title: 'Eaten the wrong way',
-        body:
-          'On a plate beside the cups. Eaten from the top down — frosting first. ' +
-          'Mira\'s food posts on Instagram are very clear: she always eats donuts from the bottom up, ' +
-          '"so the frosting hits different as the finale." She didn\'t eat this one. The visitor did.',
-        image: null,
-      },
-      clueId: 'clue-l2-donut',
     },
 
     // Laptop — Gmail draft to Veer about Clause 7B. Unsent.
@@ -292,11 +291,16 @@ export default {
       { id: 'c', text: 'Suicide — she took her own medication deliberately.', correct: false },
       { id: 'd', text: 'Natural causes — heart failure in her sleep.',        correct: false },
     ],
-    // The powder in Mira's cup proves the means; the donut proves the
-    // visitor was eating from her plate (and therefore present and
-    // close enough to drop something into her drink). Either alone is
-    // ambiguous; together they fix the answer.
-    requiredClues: ['clue-l2-cup-residue', 'clue-l2-donut'],
+    // The powder in Mira's cup proves the means; the unsent Veer email
+    // on the laptop proves the visitor was here close enough to her
+    // life that "she went to bed normally" no longer holds — she was
+    // mid-task, not winding down. Either alone is ambiguous; together
+    // they fix the answer.
+    //
+    // (Originally gated on clue-l2-donut as the second clue. The Donut
+    // mesh was removed in the May-2026 GLB rebake; the laptop email is
+    // the next-best load-bearing clue available.)
+    requiredClues: ['clue-l2-cup-residue', 'clue-l2-laptop'],
     onWrong: { shake: true, disable: true },
   },
 
