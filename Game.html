@@ -762,7 +762,7 @@ setTimeout(async () => {
   setLoadMsg('Loading assets/models/1room.glb…');
   setLoadProgress(40);
   try {
-    const gltf = await loadGLBFromURL('assets/models/1room.glb');
+    const gltf = await loadGLBFromURL('assets/models/2room.glb');
     setupModel(gltf);
   } catch(err) {
     console.warn('Could not load assets/models/1room.glb, falling back to demo:', err);
