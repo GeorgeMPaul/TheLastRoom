@@ -52,6 +52,8 @@ The apartment is a single studio with the following permanent zones:
 
 ---
 
+*Transition: "The room didn't fight back. Neither did she. She had no reason to."*
+
 ## LEVEL 1 — THE CRIME SCENE
 **Task: WHERE — Was Mira murdered here, in this room? Or was her body moved?**
 **Date: Monday, March 18, 2024 | 9:15 AM | Overcast, flat grey light. No shadows.**
@@ -115,11 +117,12 @@ The player must confirm: no forced entry, no signs of a struggle, two people in 
 
 **Answer: Yes. The Last Room itself — Unit 4B, Elara Residences. Mira was murdered exactly where she was found.**
 
-*Transition: "The room didn't fight back. Neither did she. She had no reason to."*
 
 ---
 
 ---
+
+*Transition: "She never felt a thing. That was the point."*
 
 ## LEVEL 2 — TWO NIGHTS BEFORE
 **Task: WEAPON — How was Mira killed?**
@@ -183,11 +186,13 @@ The powder residue in Mira's cup, added from above while she was looking at the 
 
 **Answer: Poisoning. Something dissolved into Mira's drink while she was looking away. Chemical, careful, and designed to look like she went to sleep.**
 
-*Transition: "She never felt a thing. That was the point."*
+
 
 ---
 
 ---
+
+*Transition: "She thought she had time. She'd always had time before."*
 
 ## LEVEL 3 — TWO WEEKS BEFORE THE MURDER
 **Task: WHAT was Mira about to do that gave someone a reason to stop her permanently?**
@@ -214,7 +219,7 @@ The room is in full work mode. Mira is at her desk — we see her in silhouette,
 Clicking opens a spread of documents. Mostly UX project files, client briefs. But one folder is different — cream-colored, labeled *"HMR / EP / Legal"* in handwriting. Inside: a printed copy of her contract with Hollow Mountain Records, with a specific clause underlined in red pen — *Clause 7B: "In the event of artist incapacitation or death prior to commercial release, all master recordings revert in perpetuity to Hollow Mountain Records, with no compensation to the artist's estate."* Beneath it, a handwritten note: *"this means if I die they own my music forever. what the actual—"* Note ends there.
 
 **② The Desktop Computer:**
-Screen is on, showing a browser with four tabs. Tab 1: her EP tracklist on GarageBand. Tab 2: a Google search — *"music contract clause 7b artist death rights india."* Tab 3: a LinkedIn profile — *Advocate Preethi Krishnan, Entertainment Law, Bangalore.* Tab 4: a bank statement PDF. The bank statement shows a transfer of ₹80,000 outgoing, 8 months ago, labeled *"Tanya S personal"* — and a WhatsApp Pay screenshot nearby showing Tanya's message: *"it's a loan not a gift btw just so we're clear."*
+Screen is on, showing a browser with five tabs. Tab 1: her EP tracklist on GarageBand. Tab 2: a Google search — *"music contract clause 7b artist death rights india."* Tab 3: a LinkedIn profile — *Advocate Preethi Krishnan, Entertainment Law, Bangalore.* Tab 4: a bank statement PDF. The bank statement shows a transfer of ₹80,000 outgoing, 8 months ago, labeled *"Tanya S personal"* — and a WhatsApp Pay screenshot nearby showing Tanya's message: *"it's a loan not a gift btw just so we're clear."*, and tab 5: a screenshot of a WhatsApp conversation saved to the desktop as *"neha_fight_feb.png."* Partially readable: *"you've been sitting on ma-baba's money for a year / it's not just yours mira / i just need what's mine."* And Mira's reply: *"i need it right now neha. the music is almost done. give me 6 more weeks."* Six weeks from this day is exactly April 14 — ten days after the EP release. She was buying time.
 
 **③ The Rubik's Cube:**
 On the desk corner, half-solved but *different* from Level 1 — in Level 1 it was fully solved. In this earlier scene it's half-done. *She was working on it actively in this period.* Stuck to the cube is a tiny sticky: *"for when I figure things out 🧩."*
@@ -232,8 +237,8 @@ A makeup/utility pouch. Inside: chapstick, a hair tie, an anxiety medication bli
 
 **CHARACTER CLUES:**
 
-**① Kabir — The Guitar's Absence:**
-She lent him her guitar — the one labeled "KABIR'S HANDS OFF." A sticky note on the empty guitar stand: *"K borrowed — give it back before friday."* She lent her most personal instrument to someone she'd warned away from it. *She wasn't as over him as she presented.*
+**① Kabir — The Guitar's Absence and the note on the bed:**
+She lent him her guitar — the one labeled "KABIR'S HANDS OFF." A sticky note on the bed: *"K borrowed — give it back before friday."* She lent her most personal instrument to someone she'd warned away from it. *She wasn't as over him as she presented.*
 
 **② Veer — The Contract:**
 The clause is brutal. And the player now learns: Mira discovered this and was pursuing legal advice. She sent the unsent email we saw in Level 2 two weeks after this day — *she spent two weeks working up the courage.* A printed email from Veer is tucked in the legal folder: *"Mira! The EP is sounding incredible. Release date confirmed: April 5. This is going to be a great year for both of us 😊."* Dated Feb 28. He didn't know she'd found the clause. *Yet.*
@@ -242,7 +247,7 @@ The clause is brutal. And the player now learns: Mira discovered this and was pu
 The bank statement tells the player clearly: ₹80,000 moved to Tanya, and Tanya classified it as a loan. On a Post-it beside the screen: *"ask Preethi abt gift vs loan — what counts as documentation."* Mira was consulting a lawyer not just about the music contract — *she was building a case against Tanya's loan claim simultaneously.* She was quietly fighting on two fronts.
 
 **④ Neha — The Account:**
-One browser tab that the player can maximize: a screenshot of a WhatsApp conversation saved to the desktop as *"neha_fight_feb.png."* Partially readable: *"you've been sitting on ma-baba's money for a year / it's not just yours mira / i just need what's mine."* And Mira's reply: *"i need it right now neha. the music is almost done. give me 6 more weeks."* Six weeks from this day is exactly April 14 — ten days after the EP release. She was buying time.
+One browser tab in the desktop: a screenshot of a WhatsApp conversation saved to the desktop as *"neha_fight_feb.png."* Partially readable: *"you've been sitting on ma-baba's money for a year / it's not just yours mira / i just need what's mine."* And Mira's reply: *"i need it right now neha. the music is almost done. give me 6 more weeks."* Six weeks from this day is exactly April 14 — ten days after the EP release. She was buying time.
 
 **⑤ Rohan — Snail Toy:**
 The snail toy sits on the shelf. A small label on its base: *"from Rohan — 'because you move at your own pace' 🐌."* He gave her a gift with a note. She kept it on her shelf, displayed, for months. She liked having him around. *She knew how he felt and let it continue because it was comfortable.* The snail will bother the player — it's a small cruelty wrapped in affection.
@@ -254,7 +259,6 @@ Multiple people had something major to lose if Mira took action: Veer (if she la
 
 **Answer: Mira was about to legally challenge her music contract AND dispute the ₹80,000 loan classification. Multiple people stood to lose significantly the moment she walked into a lawyer's office.**
 
-*Transition: "She thought she had time. She'd always had time before."*
 
 ---
 
