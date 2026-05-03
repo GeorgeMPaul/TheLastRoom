@@ -45,10 +45,6 @@ camera.position.set(8, 8, 8);
 const cameraRig = createCameraRig(camera, renderer.domElement);
 cameraRig.setTarget(new THREE.Vector3(0, 1, 0));
 
-if (isDevMode()) {
-  mountDevOverlay(uiRoot);
-}
-
 // ─── Picker + clue panel ─────────────────────────────────────────────
 // The picker's interactive map is set by the level-runner once content
 // is in hand. On click, we dispatch discoverClue (deduped by state.js)
@@ -108,6 +104,21 @@ gameState.subscribe((state, action) => {
   console.log(`[state] ${action.levelId}: ${found} clue${found === 1 ? '' : 's'} discovered`);
 });
 
+// ─── Dev overlay (mounted after picker so the ctx can capture it) ──
+// Pass closures (not bare values) so the overlay always reads the
+// current activeModelRoot rather than the null we have at boot.
+let activeModelRoot = null;
+if (isDevMode()) {
+  mountDevOverlay(uiRoot, {
+    getActiveLevel: () => level01,
+    getModelRoot:   () => activeModelRoot,
+    picker,
+    uiRoot,
+    openCluePanel,
+    openQuestionPanel,
+  });
+}
+
 // ─── Load Level 1 via the level-runner ──────────────────────────────
 activeLevelId = level01.id;
 
@@ -123,6 +134,7 @@ loadLevelById({
 })
   .then(({ modelRoot }) => {
     console.log(`[main] level "${level01.id}" loaded; root has ${modelRoot.children.length} children`);
+    activeModelRoot = modelRoot;
 
     // Mount the HUD once the level is ready. The HUD owns the notes
     // button + answer button and is the only thing that triggers the

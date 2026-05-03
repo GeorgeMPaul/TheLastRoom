@@ -242,7 +242,15 @@ Visual styling is being deferred — modules are structured first with semantic 
 
 ## Dev mode
 
-Activated by `?dev=1` in the URL. Enables a level-skip menu, reveal-all-clues, mesh-name overlay, state-reset, FPS counter, recent-state-mutations console. Built early (Step 2 of the implementation plan) because it pays for itself in QA time. Live at `js/ui/dev-overlay.js`.
+Activated by `?dev=1` in the URL. Live at `js/ui/dev-overlay.js`. The purpose is **one-click access to every panel that has been built**, plus state manipulation and inspection — so you never have to play through a level to test a panel you authored ten minutes ago.
+
+The overlay is grouped into three sections:
+
+- **Panels** — pick any clue from the dropdown to open its clue panel; "Open question panel" bypasses the `requiredClues` gate; "Open notes view" is a shortcut for the HUD's notes button.
+- **State** — "Reveal all clues" dispatches `discoverClue` for every entry in the active level's interactives map (which also unlocks the Answer button); "Mark level answered" toggles the level into `answeredLevels`; "Reset all state + reload" wipes localStorage.
+- **Inspect** — live FPS, clue counter, note counter; "Toggle mesh-name overlay" shows every interactive name in the active level alongside whether the GLB actually contains a node with that name (✓ = CURRENT, ✗ = PENDING); "console.log(state)" dumps the live store.
+
+When you build a new UI panel or content surface, **add a one-click trigger to the dev overlay in the same change**. That is the contract: dev mode is the test harness for everything you author. The overlay receives a `ctx` from `main.js` carrying `getActiveLevel` / `getModelRoot` / `picker` / `uiRoot` plus the same `openCluePanel` / `openQuestionPanel` instance-managers main.js owns — extend `ctx` rather than letting the overlay reach into module internals.
 
 ## Build sequence
 
