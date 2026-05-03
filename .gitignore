@@ -6,3 +6,6 @@
 .DS_Store
 Thumbs.db
 *.swp
+
+# Personal Files
+TODO.md

@@ -15,7 +15,7 @@ This plan reconciles the dev plan and the prototype, settles eight foundational 
 | 1 | **Three.js r0.158 + ESM importmap** (kept from `Game.html`, dev plan is updated to match) | Modules use `import * as THREE from 'three'` and `import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'`. No global `window.THREE`. No build step still — importmap does the resolution. |
 | 2 | **Seven distinct per-level GLBs** | Each level is a fully-authored frozen snapshot. Modeler workload is 7× but engine stays trivially simple — load + dispose, no state-override layer. |
 | 3 | **`TheLastRoom/` IS the project root** *(revised from original "promote and archive" plan after discovering the git repo root is `TheLastRoom/`, not the parent `MiniJamGame/`)* | All work happens inside this repo as-is. Dev-plan paths (`js/`, `assets/`, `index.html`) apply literally — no prefix needed. The old sphere-walking code at `D:\MiniJamGame\` is outside this repo and stays untouched. |
-| 4 | **UI styling deferred** | Each panel is built as a JS module with a clear behavioral contract (mount, props, events, unmount). Visual styling is left as a TODO in each component file — markup and CSS class hooks are in place but the look-and-feel pass happens later. |
+| 4 | **UI styling deferred** | Each panel is built as a JS module with a clear behavioral contract (mount, props, events, unmount). Visual styling is left as a TODO in each component file — markup and CSS class hooks are in place but the look-and-feel pass happens later. The current temporary palette is dark-mystery (`#0a0e1a` page, `#11162a`/`#161c2c` cards, `#2a3553` borders, `#e6ecf6` text, `#2e5cff` primary actions). Match the palette for new panels so the deferred phase still reads as one game; the user has said they will redo the visuals manually. |
 | 5 | **Dev mode built in Step 2** | `?dev=1` URL flag enables level skip, reveal-all-clues, mesh-name overlay, state reset, FPS counter. Built before any level-1 polish so it's available for QA. |
 | 6 | **First milestone = all 7 levels playable, polish later** | Optimize for end-to-end story coverage over per-level polish. Every system gets exercised on every level before any single level is "done." |
 | 7 | **Strict downward-only layering** | `engine` knows nothing about story. `game` knows nothing about Three.js. `ui` never imports from `engine`. `content` is pure data. New levels are content-file + GLB only. |
@@ -255,7 +255,7 @@ Each UI module is a plain function module that exports `mount(container, props)`
 |---|---|---|
 | `scene.js` | `initScene()`, `resize()`, `applyTOD(name)`, `applyTODSlider(v)`, `setExposure(x)`, exports `{ renderer, scene, camera, ambientLight, sunLight, fillLight, rimLight }` | Lift the `TOD` table and `applyTOD` / `applySlider` functions verbatim from `Game.html`. PCF soft shadows, ACES tone mapping, sRGB output. Resize handler attached. |
 | `loader.js` | `loadLevel(url, onProgress) → Promise<gltf>`, `disposeLevel(scene)` | Wraps `GLTFLoader`. Caches by URL in a `Map`. Dispose walks geometries, materials, textures — **not optional**. |
-| `picker.js` | `initPicker()`, `setInteractiveMap(map)`, `setInputBlocked(bool)` | Builds interactive-mesh list once per level load. On `pointermove`: hover cursor + emissive bump. On `pointerup`: raycast against `clickableObjects`, dispatch `discoverClue(clueId)`. Reads `inputBlocked` so modals freeze the picker. Reuses the click/drag-distance discriminator from `Game.html` (>4px = drag, ignore). |
+| `picker.js` | `createPicker(camera, domElement, scene, onPick) → { setInteractiveMap, setRoot, setInputBlocked, dispose }` | Raycasts against `raycastRoot` (the level's `modelRoot`) recursively. For the closest hit, walks the parent chain looking for an interactive name in the allowlist — required because GLTF parks names on parent `Group`s rather than the renderable mesh. On `pointermove`: hover cursor + emissive bump on the visible mesh. On `pointerup`: invoke `onPick(name, descriptor)` (caller dispatches `discoverClue`). Reads `inputBlocked` so modals freeze the picker. Reuses the click/drag-distance discriminator from `Game.html` (>4px = drag, ignore). |
 | `camera-rig.js` | `initCamera(constraints)`, `update()` | Limited-orbit controls — lift the `OrbitControls` class from `Game.html` and wire it to read polar/azimuth/distance constraints from the level's `camera.constraints`. |
 
 ---
@@ -265,16 +265,16 @@ Each UI module is a plain function module that exports `mount(container, props)`
 | # | Step | Goal | Acceptance |
 |---|---|---|---|
 | **0** ✅ | **Reorganize in-place (DONE)** | Move `Models/1room.glb` → `assets/models/level-01.glb`; `roomfinalblender/` → `assets/source/blender/`; `references/` → `docs/references/`. Create empty `assets/audio/{ambient,sfx}/`, `assets/images/{clues,characters}/`. Update `Game.html` to point to the new GLB path. | `python -m http.server` from repo root + open `Game.html` loads the room exactly as before. ✅ done. |
-| **1** | **Bootstrap** | New `index.html` with importmap, `<div id="ui-root">`, `<div id="canvas-container">`. New `js/main.js` that imports `engine/scene.js` and shows an empty canvas with the Day TOD lighting. New `CLAUDE.md` (see content below). New `README.md`. `Game.html` may stay as a scratch page or be deleted — your call. | Empty canvas renders at `index.html`. No console errors. |
-| **2** | **Dev mode** | `js/ui/dev-overlay.js` activated by `?dev=1`. Level skip is a stub for now (only one level exists). Reveal-all, state-reset, FPS counter, mesh-name overlay all work. | `?dev=1` shows the overlay. Buttons either work or are clearly stubbed. |
-| **3** | **Loader + Level 1 GLB** | Lift `loadGLBFromURL` and `setupModel` from `Game.html` into `engine/loader.js`. `main.js` calls `loader.loadLevel('assets/models/level-01.glb')`. Camera rig loaded with hardcoded constraints for now. | Level 1 GLB renders. Orbit controls work. |
-| **4** | **Picker** | `engine/picker.js` with raycasting + hover emissive (lift from `Game.html`'s `selectObject` + click handler). For now, hardcode 3-5 interactive mesh names from `level-01.glb` (whatever's actually in the file). Click logs the name to console. | Hovering an interactive mesh changes cursor. Clicking logs to console. |
-| **5** | **Game state store** | `js/game/state.js` with the pubsub (~30 lines), actions, localStorage persistence under `last-room-save-v1`, `schemaVersion: 1`. Wire picker to dispatch `discoverClue(clueId)`. | Console-log subscribers see clue counts incrementing. Reload preserves state. |
-| **6** | **Clue panel (structural only)** | `js/ui/clue-panel.js` with `mount/unmount` contract. Bare HTML markup with semantic classes, no styling pass. Opens on `discoverClue` if state has the reveal data. Closes on Escape and click-outside. Sets picker's `inputBlocked`. | Clicking interactive object opens panel showing title + body. Closes correctly. Picker doesn't fire while panel is open. |
-| **7** | **Level content schema + Level 1 content** | `js/content/levels/level-01.js` per the schema above with all 6 investigation clues + 5 character clues from the story bible. `js/game/level-runner.js` reads the content file, configures camera/picker/audio, loads the GLB. Replace hardcoded picker mesh list with content-driven map. Log a warning at load when a content key has no matching mesh in the GLB. | Level 1 fully content-driven. All ~11 clues clickable and show real story text. |
-| **8** | **Notes — foundation** | `js/game/notes.js` data model. "Add to Notes" button in clue panel — `js/ui/add-to-notes-button.js`. Simplest possible `notes-view.js`: a flat list, no folders, no search. Notes button in HUD. Persists with the rest of state. | Saving a note from a clue panel adds it to the list. Reload preserves notes. |
-| **9** | **Notes — complete** | Folders (default: Suspects/Evidence/Timeline/Random), drag-or-dropdown reassignment, search across all notes, inline edit, new-note button, new-folder button. | All notes operations work. Search filters. Drag-and-drop or dropdown reassignment moves a note between folders. |
-| **10** | **Question panel** | `js/ui/question-panel.js` with the MCQ. Wrong-answer shake. `requiredClues` gating — answer button disabled until all required clueIds are in `cluesByLevel`. Correct → triggers placeholder transition. | Answering wrong shakes; answering right calls a placeholder `advanceToLevel`. |
+| **1** ✅ | **Bootstrap** | New `index.html` with importmap, `<div id="ui-root">`, `<div id="canvas-container">`. New `js/main.js` that imports `engine/scene.js` and shows an empty canvas with the Day TOD lighting. New `CLAUDE.md` (see content below). New `README.md`. `Game.html` may stay as a scratch page or be deleted — your call. | Empty canvas renders at `index.html`. No console errors. |
+| **2** ✅ | **Dev mode** | `js/ui/dev-overlay.js` activated by `?dev=1`. Initially built as stubs (Step 2); fleshed out alongside Steps 6–10 to be the test harness for everything authored. Three sections: **Panels** (open any clue, open the question panel ungated, open the notes view), **State** (reveal all clues, mark level answered, wipe state), **Inspect** (FPS, clue counter, note counter, mesh-name overlay with ✓/✗ for CURRENT vs PENDING, console.log(state)). main.js passes a `ctx` of getters + the same `openCluePanel`/`openQuestionPanel` instance-managers it uses for normal flow. **Convention**: any new UI panel or content surface added in later steps should also get a one-click trigger in dev-overlay.js as part of the same change. | `?dev=1` shows the overlay. Every button either works or has a console warning explaining the missing context. |
+| **3** ✅ | **Loader + Level 1 GLB** | Lift `loadGLBFromURL` and `setupModel` from `Game.html` into `engine/loader.js`. `main.js` calls `loader.loadLevel('assets/models/level-01.glb')`. Camera rig loaded with hardcoded constraints for now. | Level 1 GLB renders. Orbit controls work. |
+| **4** ✅ | **Picker** | `engine/picker.js` with raycasting + hover emissive (lift from `Game.html`'s `selectObject` + click handler). For now, hardcode 3-5 interactive mesh names from `level-01.glb` (whatever's actually in the file). Click logs the name to console. **Important**: GLTF parks human-readable names on the parent `Group`, not the renderable mesh — the picker walks the parent chain of every raycast hit looking for an interactive name in the allowlist (see CLAUDE.md "Engine conventions"). The current allowlist uses 5 hardcoded Blender object names: `Laptop`, `Ukulele`, `Rubick`, `MarshallSpeaker`, `TableLamp`. | Hovering an interactive mesh changes cursor. Clicking logs to console. |
+| **5** ✅ | **Game state store** | `js/game/state.js` with the pubsub (~30 lines), actions, localStorage persistence under `last-room-save-v1`, `schemaVersion: 1`. Wire picker to dispatch `discoverClue(clueId)`. | Console-log subscribers see clue counts incrementing. Reload preserves state. |
+| **6** ✅ | **Clue panel (structural only)** | `js/ui/clue-panel.js` with `mount/unmount` contract. Header (title), optional image, body, Add-to-Notes (stub) + Cancel buttons. Scoped `<style>` per the dev-overlay reference. Opens on click (from picker callback so re-clicks reopen, not from the state subscriber which only fires on first discovery). Closes on Escape, Cancel, and backdrop click. Sets picker's `inputBlocked` while open. | Clicking an interactive opens the panel with title+body. Closes via Escape / Cancel / backdrop. Picker frozen while panel is open. Re-clicking the same object reopens it. |
+| **7** ✅ | **Level content schema + Level 1 content** | `js/content/levels/level-01.js` per the schema in this doc with all 6 investigation clues + 5 character clues from the story bible. `js/game/level-runner.js` reads the content file, applies TOD lighting, configures the picker's interactive map, loads the GLB, and warns at load time about any content key that doesn't resolve to a named object in the scene graph (walks `obj.name` for every node, not just meshes). main.js no longer hardcodes the interactive map. **Modeler coordination still pending**: the GLB's 5 working names (Laptop, Ukulele, Rubick, MarshallSpeaker, TableLamp) are reused as stand-ins for 5 of the 11 narrative clues; the remaining 6 entries (Interact_Cup_001, Interact_Window_001, Interact_Mirror_001, Interact_Portraits_001, Interact_MoviePoster_001, Interact_Books_001, Interact_Plant_001) fire the load-time warning and won't be clickable until the rename ships. | Level 1 is fully content-driven. The 5 currently-modeled interactives open a panel with story-bible text. The 6 pending interactives are listed in the missing-mesh warning. |
+| **8** ✅ | **Notes — foundation** | `js/game/notes.js` (read-side facade — selectors `listFolders` / `listNotes` / `noteCount` / `noteCountInFolder`; mutations stay in `state.js`). `js/ui/add-to-notes-button.js` (inline form embedded in `clue-panel.js`, replacing the Step-6 stub textarea). The clue panel's `defaultContent` pre-fills with `${title}\n\n${body}`. `js/ui/notes-view.js` and `js/ui/notes-button.js` are landed in the same pass as Step 9 (the "flat list, no folders" intermediate would have been thrown away immediately). | Saving a note from a clue panel adds it to the list. Folder dropdown defaults to Evidence. Reload preserves notes. |
+| **9** ✅ | **Notes — complete** | `notes-view.js` ships full: two-pane (folders / notes), "All notes" pseudo-folder, default folders (Suspects/Evidence/Timeline/Random) plus user-created, search across all notes, inline edit, new-note (transient draft — note isn't inserted until Save), new-folder, delete-folder (with notes auto-moved to Random), delete-note, move-via-dropdown. Mounted from `notes-button.js` in the HUD; N hotkey toggles open/close. | All notes operations work end-to-end. Search filters. Dropdown reassigns a note between folders. Default folders are not deletable. Persistence verified across reloads. |
+| **10** ✅ | **Question panel** | `js/ui/hud.js` mounted at level load — clue counter ("3 / 11 clues"), notes button slot, "Answer" button gated on `requiredClues` (disabled with reason text underneath until all required clueIds are discovered). `js/ui/question-panel.js` modal MCQ — wrong-answer shake (CSS keyframe), wrong option disabled per `onWrong: { disable: true }`, correct option flashes green then dispatches `answerQuestion(levelId, true)` and closes. main.js wires `onCorrect` to a placeholder console log; Step 12 will mount the real level transition. **Heads-up**: `level-01.js`'s `requiredClues` were temporarily set to `['clue-rug-impressions', 'clue-guitar-capo']` (both CURRENT) instead of the story-bible `['clue-cup-residue', 'clue-rug-impressions']` so the gating is testable today — the cup mesh is PENDING. Restore after the modeler ships the rename. | Answer button disabled until both required clues are discovered. Wrong answer shakes the card and disables the option. Correct answer flashes green, calls `answerQuestion(level-01, true)`, and logs the advanceToLevel placeholder. |
 | **11** | **Audio system** | `js/engine/audio.js` plays one ambient track per level (looping). First-click unlock gate. Level 1's ambient track wired in. | Audio plays after first click. Loops. |
 | **12** | **Level transition + Level 2 stub** | `js/ui/level-transition.js` with fade + title card + outro text. Properly disposes Level 1's GLB before loading Level 2's. Author a *minimal* `level-02.js` and `level-02.glb` (can be a copy of level-01 for now — the goal is to prove transitions don't leak GPU memory). | Transitioning Level 1 → Level 2 → back to Level 1 doesn't crash and doesn't grow renderer.info.memory unboundedly. |
 | **13** | **Level 1 polish (hover/SFX, clue images)** | Polish hover effect, add SFX on clue discovery and note save, image zoom in clue panels, transition pacing. The structural clue panel grows real visuals here. | Level 1 feels good to play through end-to-end. |
@@ -288,45 +288,43 @@ Steps 0-13 are foundation (~3-4 weeks per spec). Steps 14-16 are content + polis
 
 ## Critical files to create or modify
 
-**Lift wholesale from `Game.html` (these already work):**
-- TOD config + `applyTOD` / `applySlider` → `js/engine/scene.js`
-- `OrbitControls` class → `js/engine/camera-rig.js`
-- `loadGLBFromURL` + `setupModel` → `js/engine/loader.js`
-- `selectObject` + click/raycast handler → `js/engine/picker.js`
-- Loading screen markup + drag-and-drop GLB swap (drag-and-drop kept dev-mode only) → `index.html`
+**Lifted from `Game.html` (Steps 1–4, all done):**
+- TOD config + `applyTOD` / `applySlider` → `js/engine/scene.js` ✅
+- `OrbitControls` class → `js/engine/camera-rig.js` ✅
+- `loadGLBFromURL` + `setupModel` → `js/engine/loader.js` ✅
+- `selectObject` + click/raycast handler → `js/engine/picker.js` ✅ (extended with parent-chain name resolution + `inputBlocked`)
+- Loading screen markup + drag-and-drop GLB swap (drag-and-drop kept dev-mode only) → `index.html` (NOT yet — current `index.html` is bare)
 
-**Author from scratch:**
-- `js/main.js`, `js/game/state.js`, `js/game/level-runner.js`, `js/game/progression.js`, `js/game/notes.js`
-- All `js/ui/*.js`
-- All `js/content/levels/*.js` and `js/content/characters/*.js`
-- `index.html` (new), `CLAUDE.md` (new), `README.md` (new)
+**Authored from scratch (Steps 1–10, all done):**
+- `js/main.js`, `js/game/state.js`, `js/game/level-runner.js`, `js/game/notes.js` ✅
+- `js/ui/dev-overlay.js`, `js/ui/clue-panel.js`, `js/ui/add-to-notes-button.js`, `js/ui/notes-view.js`, `js/ui/notes-button.js`, `js/ui/hud.js`, `js/ui/question-panel.js` ✅
+- `js/content/levels/level-01.js` ✅
+- `index.html`, `CLAUDE.md`, `README.md` ✅
+- `js/game/progression.js` was in the original plan but turned out unnecessary — `level-runner.js` plus a future static `levels[]` array in `content/index.js` covers everything `progression.js` was supposed to do. Don't create it.
+
+**Still to author (Steps 11–16):**
+- `js/engine/audio.js` (Step 11)
+- `js/ui/level-transition.js` (Step 12)
+- `js/content/levels/level-02.js` … `level-07.js` and matching authored GLBs (Step 12 stub + Step 14 real)
+- `js/ui/accusation-panel.js`, `js/ui/character-card.js`, `js/content/characters/<id>.js` × 5 (Step 15)
+- Win/lose ending screens, credits (Step 16)
 
 **Already moved (Step 0 complete):**
-- `Models/1room.glb` → `assets/models/level-01.glb` (then 6 more authored siblings)
+- `Models/1room.glb` → `assets/models/level-01.glb`. Levels 02–05 currently exist as byte-identical placeholder copies; Level 6 and Level 7 GLBs not yet created.
 - `roomfinalblender/` → `assets/source/blender/`
 - `references/dialogues/*.png` → `docs/references/dialogues/`
 
 ---
 
-## CLAUDE.md (new — to write at Step 1)
+## UI authoring guidelines (learned through Steps 6–10)
 
-The new root `CLAUDE.md` must document:
+The dev-overlay (Step 2) is the reference shape every subsequent UI module follows. New panels should match its conventions, not invent their own. The two rules below caused real bugs during the Steps 8–10 build and would catch any future module touching state-driven re-renders.
 
-- Game concept and core loop (observe → click → read → take notes → answer)
-- Four-layer architecture (engine / game / ui / content) and the strict downward-only dependency rule
-- Loader strategy: r0.158 ESM via importmap (NOT r128 globals — the dev plan is wrong on this one point and was updated)
-- Level content schema with a small worked example
-- Character schema (basic info only — no progressive dossier)
-- Notes system as the player's working memory and Level 7's reference
-- Mesh-naming convention: `Interact_<Object>_<NNN>`
-- Unit (meters) and coordinate (Y-up, right-handed) conventions
-- Camera-and-occlusion design rule: every interactive must be reachable from the level's allowed camera range
-- Disposal discipline on level transitions
-- Audio-unlock-on-first-click rule
-- Save schema versioning + graceful reset on mismatch
-- Dev mode (`?dev=1`) and what it enables
-- "No build step" rule remains, but importmap is the resolution mechanism (NOT a script-tag global)
-- Note that the parent folder `D:\MiniJamGame\` contains an unrelated sphere-walking project that lives outside this repo. Never reference it from new code.
+**Mount UI from the input event, not from a state subscriber, when responding to user intent.** The picker → clue-panel chain in `main.js` opens the panel from the picker callback, not from a `discoverClue` subscriber. If we mounted from the subscriber instead, re-clicking an already-discovered clue would do nothing — `discoverClue` is deduped in `state.js` and the subscriber only fires on first discovery. The same logic applies to anything where the user expects "click again to see it again."
+
+**Clear local view state BEFORE dispatching a state action that triggers a re-render.** `state.js`'s `commit()` notifies subscribers *synchronously*. If a UI panel keeps local state — e.g. `editingNoteId`, `draftOpen`, `activeFolderId` in `notes-view.js` — that the render function reads, set it to its post-action value first, then dispatch. Otherwise the subscriber re-renders against the pre-action value and the UI looks stuck (the saved note still shows the edit textarea, the new folder isn't highlighted as active, etc.). There are three instances of this pattern in `notes-view.js` worth referencing if you hit a "save did nothing visible" bug.
+
+The CLAUDE.md "UI" section also documents these rules and the dev-overlay-shape contract (vanilla HTML+CSS+ESM, no IDs, scoped `<style>`, `setInputBlocked` as the only engine API, `textContent` for user-controlled text). Read CLAUDE.md before adding a new panel.
 
 ---
 
@@ -334,15 +332,17 @@ The new root `CLAUDE.md` must document:
 
 End-to-end test plan:
 
-1. **Boot test:** `python -m http.server 8000` from repo root → `http://localhost:8000` loads the canvas with Day TOD lighting and no console errors.
-2. **Level 1 vertical:** Click each interactive in Level 1 → clue panel opens with story text → "Add to Notes" saves → notes view shows it → answer the MCQ correctly → transition fires.
-3. **Save/load:** After Step 5, refresh mid-level — clues already discovered stay discovered, notes persist.
+1. **Boot test:** `python -m http.server 8000` from repo root → `http://localhost:8000` loads the Level-01 GLB with Day TOD lighting, the HUD at the bottom (clue counter + Notes button + disabled Answer button), and no console errors except the expected "interactive(s) defined in content but not present in GLB" warning listing the 6 PENDING `Interact_*` keys.
+2. **Level 1 vertical:** Click each of the 5 currently-clickable interactives in Level 1 (laptop, ukulele, marshall speaker, rubik's cube, table lamp) → clue panel opens with story text → "Add to Notes" pre-fills with title+body, picks Evidence by default, Save adds the note → notes button badge increments → answer the MCQ correctly → onCorrect placeholder fires (real transition arrives in Step 12).
+3. **Save/load:** Refresh mid-level — clues already discovered stay discovered, notes persist, folder structure persists.
 4. **Disposal:** After Step 12, transition L1→L2→L1→L2 ten times. Open browser dev tools → `renderer.info.memory.geometries` should not grow unboundedly.
-5. **Picker isolation:** With clue panel open, clicking the canvas behind it should do nothing (picker `inputBlocked: true`).
-6. **Dev mode:** `?dev=1` shows overlay. Level skip jumps directly. State-reset clears localStorage and reloads.
-7. **Notes search:** With ~10 notes across folders, search bar filters across all folders.
-8. **Required-clues gating:** In Level 1, the answer button is disabled until all `requiredClues` are discovered. Discovering them enables it.
-9. **Level 7 accusation:** Submit Tanya → win path. Submit any other → lose path.
-10. **Schema mismatch:** Manually bump `schemaVersion` in code, reload — should show "we updated the game and reset progress" and start fresh without crashing.
+5. **Picker isolation:** With clue panel, notes view, or question panel open, clicking the canvas behind it should do nothing (picker `inputBlocked: true`). Closing the modal restores hover + click.
+6. **Dev mode:** `?dev=1` shows overlay. Pick any entry in the clue dropdown → that clue panel opens (and the clue is marked discovered). "Open question panel" works regardless of `requiredClues` state. "Open notes view" works. "Reveal all clues" enables the Answer button immediately. "Mark level answered" flips the HUD to "Answered ✓". "Toggle mesh-name overlay" lists every interactive name with ✓/✗ resolution. "Reset" wipes localStorage and reloads.
+7. **Notes search:** With ~10 notes across folders, search bar filters across all folders. The search runs against `note.content`, case-insensitive, substring match.
+8. **Required-clues gating:** In Level 1, the Answer button is disabled until both `requiredClues` (`clue-rug-impressions` from the laptop and `clue-guitar-capo` from the ukulele — temporarily, see Standing caveats in CLAUDE.md) are discovered. Discovering them enables it; the helper text under the button updates.
+9. **Wrong-answer behavior:** Picking a wrong option on the MCQ shakes the card (CSS keyframe, ~450ms) and disables that specific option. Picking the correct option flashes green for ~700ms before the panel closes.
+10. **Notes view operations:** N hotkey opens the view (and ignores N when typing in any input). + New note → inline draft → Save commits. + New folder works and auto-selects the new folder. Folder dropdown on a note moves it. Delete on a non-default folder prompts and reassigns its notes to Random. Default folders (Suspects/Evidence/Timeline/Random) cannot be deleted.
+11. **Level 7 accusation:** (Step 15) Submit Tanya → win path. Submit any other → lose path.
+12. **Schema mismatch:** Manually bump `SCHEMA_VERSION` in `state.js`, reload — `state.js` currently logs a console warning and silently starts fresh. The CLAUDE.md spec calls for a visible "we updated the game and reset progress" banner; that's a UX TODO, not a bug.
 
 There is no automated test suite in scope for the game jam timeline. Verification is manual playthrough at each step boundary.

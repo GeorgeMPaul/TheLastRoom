@@ -66,9 +66,10 @@ Litmus test: can you ship a new level by adding only a content file and a GLB? I
 ├── game_story.md           full story bible
 │
 ├── js/
-│   ├── main.js             bootstrap
-│   ├── engine/             Three.js wrappers — scene, loader, picker, camera-rig, audio
-│   ├── game/               state, level-runner, progression, notes
+│   ├── main.js             bootstrap (orchestrates engine + level-runner + UI)
+│   ├── engine/             Three.js wrappers — scene, loader, picker, camera-rig (audio in Step 11)
+│   ├── game/               state (single store + actions), level-runner (one level's lifecycle),
+│   │                       notes (read-side selectors over state)
 │   ├── ui/                 every overlay panel; styling deferred (see plan)
 │   └── content/            levels/level-01.js … level-07.js, characters/<id>.js
 │
@@ -205,9 +206,10 @@ If `schemaVersion` doesn't match on load, show a "we updated the game and reset 
 ## Engine conventions
 
 - **Mesh naming:** interactive meshes follow `Interact_<Object>_<NNN>`, e.g. `Interact_Diary_001`. Non-interactive meshes can be named anything; consistent prefixes (`Wall_`, `Furniture_`, `Decor_`) help.
+- **GLTF puts names on parent groups, not meshes.** When a Blender object exports through GLTF, the human-readable name almost always lands on a parent `Group` node, and the renderable child mesh is either nameless or generically named (`Plane.004`, `Mesh_5`). The picker accounts for this by walking the parent chain of every raycast hit until it finds an interactive name in the level's allowlist. Allowlist names should match the *Blender object name* (the parent Group), not the inner mesh name. The Step-7 "log a warning at level load when a content key has no matching mesh" rule must therefore check every named object in the scene graph (`obj.name`), not just `obj.isMesh && obj.name`.
 - **Units and scale:** Blender set to meters. Apply transforms before export. One Three.js unit = one meter. Eye level ≈ 1.6 m.
 - **Coordinate system:** Three.js is right-handed Y-up. Export GLBs with +Y up.
-- **Camera-and-occlusion as a level-design constraint:** every interactive object must be reachable by raycast from somewhere within the level's allowed camera range. The picker raycasts against *all* meshes and checks whether the closest hit is interactive — if a non-interactive blocks an interactive, the click does nothing. This is the modeler's responsibility; QA it by clicking every interactive in dev mode before signing off.
+- **Camera-and-occlusion as a level-design constraint:** every interactive object must be reachable by raycast from somewhere within the level's allowed camera range. The picker raycasts against *all* meshes recursively, walks the parent chain of the closest hit to find an interactive ancestor, and discards the click if the closest hit's parent chain has no interactive name — meaning a non-interactive mesh in front of an interactive one will block the click. This is the modeler's responsibility; QA it by clicking every interactive in dev mode before signing off.
 - **Disposal is not optional.** Three.js doesn't garbage-collect GPU resources. `loader.disposeLevel()` walks the scene graph and disposes geometries, materials, and textures. Skip this on level transitions and mobile browsers will crash within a few transitions.
 - **Audio unlock on first user click.** Browsers block playback until a user gesture. The boot sequence shows a "Click to begin" gate that doubles as the audio unlock.
 - **Asset paths are always relative from the repo root** (`assets/models/level-01.glb`), never absolute. Always referenced through level content files, never hardcoded in engine or UI code.
@@ -222,14 +224,43 @@ All UI lives under `<div id="ui-root">` with `pointer-events: none` by default a
 
 Each UI module is a plain function module exporting `mount(container, props)` returning `{ unmount() }`. It subscribes to `game/state.js` and dispatches actions back. **It never imports from `engine/`.**
 
-Visual styling is being deferred — modules are structured first with semantic class names (`.clue-panel`, `.clue-panel__title`), and the look-and-feel pass happens later. Don't try to make panels look polished when building them; that pass is intentionally separate.
+Visual styling is being deferred — modules are structured first with semantic class names (`.clue-panel`, `.clue-panel__title`), and the look-and-feel pass happens later. The current temporary look is a dark-mystery palette (`#11162a` cards on `#0a0e1a`, `#2e5cff` for primary actions, `#e6ecf6` text). Don't try to make panels look polished when building them — that pass is intentionally separate, and the user has said they'll redo the visuals manually.
 
-Build each panel as a static prototype in `prototypes/` first, then wire it in.
+`js/ui/dev-overlay.js` is the reference shape every UI module follows:
+
+- Vanilla HTML + CSS + ESM. **Zero** npm / Tailwind / JSX / preprocessor.
+- Default export (or named `mount*`) takes a single options object: `mount({ parent, ...props }) → { unmount }`.
+- Build the DOM with one `innerHTML` template literal and a scoped `<style>` block at the top. Class names are BEM-ish (`.notes-view__folder--active`).
+- Bind events via delegation on the root, dispatching on `e.target.dataset.action`. Use `data-` attributes, not IDs (multiple instances would collide).
+- Modal panels MUST freeze the picker: `picker.setInputBlocked(true)` on mount, `false` on unmount. Forgetting unblocks lets the player click through the modal into the 3D scene. `setInputBlocked` is the *only* engine API a UI module is allowed to touch.
+- Always populate user-controlled text via `textContent`, never `innerHTML` interpolation. If you must build markup with strings, run untrusted text through a local `escapeHtml` helper.
+- Subscribe to `game/state.js` if the panel needs to live-update; remember to call the returned unsubscribe in `unmount`.
+
+**Mount UI from the input event, not from a state subscriber, when responding to user intent.** The picker → clue-panel chain in `main.js` opens the panel from the picker callback even though it also dispatches `discoverClue`. If we mounted from the subscriber instead, re-clicking an already-discovered clue wouldn't reopen the panel — `discoverClue` is deduped and only notifies on the first discovery. The same logic applies to anything where the user expects "click again to see it again": the click is the trigger, not the state delta.
+
+**Clear local view state BEFORE dispatching a state action that triggers a re-render.** `state.js`'s `commit()` calls subscribers *synchronously*. If a UI panel keeps local state (e.g. `editingNoteId`, `draftOpen`, `activeFolderId`) that the render function reads, set it to its post-action value first, then dispatch — otherwise the subscriber re-renders against the pre-action value and the UI looks stuck. There are three instances of this pattern in `notes-view.js` worth referencing if you hit a "save did nothing visible" bug.
 
 ## Dev mode
 
-Activated by `?dev=1` in the URL. Enables a level-skip menu, reveal-all-clues, mesh-name overlay, state-reset, FPS counter, recent-state-mutations console. Built early (Step 2 of the implementation plan) because it pays for itself in QA time. Live at `js/ui/dev-overlay.js`.
+Activated by `?dev=1` in the URL. Live at `js/ui/dev-overlay.js`. The purpose is **one-click access to every panel that has been built**, plus state manipulation and inspection — so you never have to play through a level to test a panel you authored ten minutes ago.
+
+The overlay is grouped into three sections:
+
+- **Panels** — pick any clue from the dropdown to open its clue panel; "Open question panel" bypasses the `requiredClues` gate; "Open notes view" is a shortcut for the HUD's notes button.
+- **State** — "Reveal all clues" dispatches `discoverClue` for every entry in the active level's interactives map (which also unlocks the Answer button); "Mark level answered" toggles the level into `answeredLevels`; "Reset all state + reload" wipes localStorage.
+- **Inspect** — live FPS, clue counter, note counter; "Toggle mesh-name overlay" shows every interactive name in the active level alongside whether the GLB actually contains a node with that name (✓ = CURRENT, ✗ = PENDING); "console.log(state)" dumps the live store.
+
+When you build a new UI panel or content surface, **add a one-click trigger to the dev overlay in the same change**. That is the contract: dev mode is the test harness for everything you author. The overlay receives a `ctx` from `main.js` carrying `getActiveLevel` / `getModelRoot` / `picker` / `uiRoot` plus the same `openCluePanel` / `openQuestionPanel` instance-managers main.js owns — extend `ctx` rather than letting the overlay reach into module internals.
 
 ## Build sequence
 
-See `docs/plan/implementation-plan.md`. Step 0 (reorganize repo) and Step 1 (bootstrap empty canvas) are complete. Don't reorder steps — each is designed to leave the game runnable, and earlier steps unblock later ones.
+See `docs/plan/implementation-plan.md` for the full per-step ledger and acceptance criteria. Steps 0–10 are done; Steps 11 (audio) and 12 (level transition + Level 2 stub) are next.
+
+**Standing caveats** that future-you will trip over if not remembered:
+
+- `level-01.js` `requiredClues` are temporarily `['clue-rug-impressions', 'clue-guitar-capo']` (both CURRENT) instead of the story-bible `['clue-cup-residue', 'clue-rug-impressions']`. The cup mesh isn't in the GLB yet, and gating on a PENDING clue makes the level unanswerable. There's a marker comment in the file — flip back when the modeler ships `Interact_Cup_001`.
+- The question panel's `onCorrect` in `main.js` is a placeholder `console.log`. Step 12 replaces it with `level-transition.js` + a real `loadLevelById(level02, …)` call.
+- Camera initial position + constraints are seeded by `main.js` with hardcoded values, not read from `level.camera`. Move into `level-runner.js` when Step 14 brings real per-level GLBs.
+- Levels 2–5 GLBs are byte-identical copies of Level 1 (placeholder). Real per-level authoring is Step 14.
+
+**Don't reorder steps** — each is designed to leave the game runnable, and earlier steps unblock later ones.

@@ -81,12 +81,6 @@ export function initScene(canvasContainer) {
 
   scene.add(ambientLight, sunLight, fillLight, rimLight);
 
-  // Reference grid to confirm rendering works during early steps;
-  // remove or hide once Level 1 GLB is loading (Step 3).
-  const gridHelper = new THREE.GridHelper(40, 40, 0x1a2240, 0x111828);
-  gridHelper.position.y = -0.02;
-  scene.add(gridHelper);
-
   window.addEventListener('resize', onResize);
 }
 
