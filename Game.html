@@ -759,13 +759,13 @@ setLoadMsg('Setting up renderer…');
 setLoadProgress(20);
 
 setTimeout(async () => {
-  setLoadMsg('Loading assets/models/1room.glb…');
+  setLoadMsg('Loading assets/models/level-04.glb…');
   setLoadProgress(40);
   try {
-    const gltf = await loadGLBFromURL('assets/models/2room.glb');
+    const gltf = await loadGLBFromURL('assets/models/level-04.glb');
     setupModel(gltf);
   } catch(err) {
-    console.warn('Could not load assets/models/1room.glb, falling back to demo:', err);
+    console.warn('Could not load assets/models/level-04.glb, falling back to demo:', err);
     buildDemoRoom();
   }
   animate();
