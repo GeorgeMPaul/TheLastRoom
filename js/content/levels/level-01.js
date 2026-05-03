@@ -9,14 +9,15 @@
  * the picker's interactive map. No engine code lives here.
  *
  * Mesh-name reality (May 2026):
- *   The current level-01.glb still uses the modeler's working names
- *   (Laptop, Ukulele, Rubick, MarshallSpeaker, TableLamp). The
- *   Interact_<Object>_<NNN> rename hasn't happened yet. We author all
- *   11 narrative clues from the story bible here so the content file
- *   is ready, but only the 5 entries marked CURRENT will resolve at
- *   runtime — main.js's load-time warning lists the rest as "not found".
- *   When the modeler ships the rename, swap the keys and delete the
- *   marker comments.
+ *   The current level-01.glb uses the modeler's working names
+ *   (Laptop, Ukulele, Rubick, MarshallSpeaker, TableLamp, Cup, Window,
+ *   Mirror, Fotos, BasePoster1, Book, Plant, etc.) rather than the
+ *   Interact_<Object>_<NNN> convention from CLAUDE.md. All 11
+ *   narrative clues from the story bible now resolve to a real mesh
+ *   in the GLB. Several clues have additional sibling meshes (Saucer,
+ *   Tea, MirrorFrame, LipStickMark, Book.001/.002, PlantPot, the
+ *   four PictureMirawith… portraits) that currently route nowhere —
+ *   fan them to the canonical clue if testers click the wrong piece.
  */
 
 export default {
@@ -134,8 +135,11 @@ export default {
       clueId: 'clue-fairy-lights',
     },
 
-    // PENDING — author Interact_Cup_001 in level-01.blend.
-    'Interact_Cup_001': {
+    // CURRENT — Cup, Saucer, and Tea are three sibling meshes at the
+    // root of the GLB; we route the canonical pick at Cup. If players
+    // start clicking the saucer or tea and expect a response, fan
+    // those mesh names to the same clue in a follow-up.
+    'Cup': {
       label: 'Cup and saucer',
       reveal: {
         type: 'text-with-image',
@@ -149,8 +153,9 @@ export default {
       clueId: 'clue-cup-residue',
     },
 
-    // PENDING — author Interact_Window_001.
-    'Interact_Window_001': {
+    // CURRENT — Window (pane), WindowClosed (alternate state), and
+    // Persiana (blind) are sibling meshes; canonical pick is Window.
+    'Window': {
       label: 'Window',
       reveal: {
         type: 'text-with-image',
@@ -163,8 +168,11 @@ export default {
       clueId: 'clue-window-latched',
     },
 
-    // PENDING — author Interact_Mirror_001.
-    'Interact_Mirror_001': {
+    // CURRENT — Mirror (glass), MirrorFrame, MirrorStand, and
+    // LipStickMark are sibling meshes; canonical pick is Mirror. The
+    // lipstick heart itself (LipStickMark) is its own mesh — fan it
+    // in if testers click directly on the mark.
+    'Mirror': {
       label: 'Mirror',
       reveal: {
         type: 'text-with-image',
@@ -179,24 +187,68 @@ export default {
     },
 
     // ─── Character clues (the pinboard, posters, books, plant) ────────
-    // All PENDING until the modeler authors named meshes.
 
-    'Interact_Portraits_001': {
-      label: 'Portraits on the wall',
+    // CURRENT — the pinboard ships as four individual portrait meshes:
+    // PictureMirawith{Kabir,Tanya,Veer,Family}, each with a sibling
+    // …Frame mesh. Each portrait is now its own clue. If testers click
+    // a frame instead of the photo, fan the *Frame mesh names to the
+    // matching clue in a follow-up.
+
+    'PictureMirawithKabir': {
+      label: 'Photo: Mira and Kabir',
       reveal: {
         type: 'text-with-image',
-        title: 'A pinboard of faces',
+        title: 'On stage with Kabir',
         body:
-          'Mira and a boy on stage, arms around each other — Kabir. ' +
-          'Mira and a girl on a rooftop, mid-cackle — Tanya. ' +
-          'Mira in a recording studio with a well-dressed older man — Veer. ' +
-          'A family photo: Mira, an older neater woman, and two elderly people — Neha, and their late parents.',
+          'Mira and a boy on stage, arms around each other, both grinning into the lights. ' +
+          'This is Kabir — her on-and-off, the one who gave her the Marshall speaker.',
         image: null,
       },
-      clueId: 'clue-portraits',
+      clueId: 'clue-photo-kabir',
     },
 
-    'Interact_MoviePoster_001': {
+    'PictureMirawithTanya': {
+      label: 'Photo: Mira and Tanya',
+      reveal: {
+        type: 'text-with-image',
+        title: 'Rooftop with Tanya',
+        body:
+          'Mira and a girl on a rooftop, mid-cackle, drinks in hand. ' +
+          'This is Tanya — her best friend since NIFT.',
+        image: null,
+      },
+      clueId: 'clue-photo-tanya',
+    },
+
+    'PictureMirawithVeer': {
+      label: 'Photo: Mira and Veer',
+      reveal: {
+        type: 'text-with-image',
+        title: 'In the studio with Veer',
+        body:
+          'Mira in a recording studio with a well-dressed older man at the console. ' +
+          'This is Veer — the producer she\'d been working with on her debut single.',
+        image: null,
+      },
+      clueId: 'clue-photo-veer',
+    },
+
+    'PictureMirawithFamily': {
+      label: 'Photo: Mira with family',
+      reveal: {
+        type: 'text-with-image',
+        title: 'Family',
+        body:
+          'A family photo: Mira, an older neater woman beside her, and two elderly people behind them. ' +
+          'Her sister Neha, and their late parents.',
+        image: null,
+      },
+      clueId: 'clue-photo-family',
+    },
+
+    // CURRENT — BasePoster1 is the framed Whiplash / Star is Born
+    // poster mesh shipped in the GLB.
+    'BasePoster1': {
       label: 'Movie posters',
       reveal: {
         type: 'text-with-image',
@@ -209,7 +261,10 @@ export default {
       clueId: 'clue-movie-posters',
     },
 
-    'Interact_Books_001': {
+    // CURRENT — Book, Book.001, and Book.002 are three sibling meshes
+    // (one for each title). Canonical pick is Book; fan to the others
+    // if testers click the wrong spine.
+    'Book': {
       label: 'Books',
       reveal: {
         type: 'text-with-image',
@@ -224,7 +279,9 @@ export default {
       clueId: 'clue-books',
     },
 
-    'Interact_Plant_001': {
+    // CURRENT — Plant (foliage) and PlantPot are sibling meshes;
+    // canonical pick is Plant.
+    'Plant': {
       label: 'Plant and flower pot',
       reveal: {
         type: 'text-with-image',
@@ -248,15 +305,10 @@ export default {
       { id: 'c', text: 'She died of natural causes — there is no crime.', correct: false },
       { id: 'd', text: 'Not enough evidence to say.',                     correct: false },
     ],
-    // Story-bible required clues are the cup residue (means of death
-    // was here) and the rug impressions (someone else was here). The
-    // cup mesh isn't in the GLB yet (PENDING Interact_Cup_001), so
-    // gating on it would make Level 1 unanswerable today. Until the
-    // modeler ships the rename, gate on two CURRENT stand-in clues
-    // so Step 10's question panel is testable end-to-end. Restore to
-    // ['clue-cup-residue', 'clue-rug-impressions'] when the cup mesh
-    // exists.
-    requiredClues: ['clue-rug-impressions', 'clue-guitar-capo'],
+    // Story-bible required clues: the cup residue (means of death
+    // was here) and the rug impressions (someone else was here).
+    // Both meshes are now CURRENT in level-01.glb.
+    requiredClues: ['clue-cup-residue', 'clue-rug-impressions'],
     onWrong: { shake: true, disable: true },
   },
 
