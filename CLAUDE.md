@@ -254,14 +254,23 @@ When you build a new UI panel or content surface, **add a one-click trigger to t
 
 ## Build sequence
 
-See `docs/plan/implementation-plan.md` for the full per-step ledger and acceptance criteria. Steps 0–12 are done; Step 13 (Level 1 polish) is next.
+See `docs/plan/implementation-plan.md` for the full per-step ledger and acceptance criteria. Steps 0–12 are done; Step 13 (Level 1 polish) is deferred. Step 14 is partially done: Levels 1 and 2 are real-authored (GLB + content). Levels 3–7 are not yet authored (GLBs absent, no content files yet).
 
 **Standing caveats** that future-you will trip over if not remembered:
 
 - `level-01.js` `requiredClues` is now the story-bible `['clue-cup-residue', 'clue-rug-impressions']` — the cup mesh (`Cup`) shipped in the GLB along with `Window`, `Mirror`, `Plant`, `Book`, and `BasePoster1`, so all 11 narrative clues now resolve. The pinboard's four portraits each have their own clue (`PictureMirawith{Kabir,Tanya,Veer,Family}` → `clue-photo-{kabir,tanya,veer,family}`), so the distinct-clue count in Level 1 is 14, not 11. Several have sibling meshes that currently route nowhere (Saucer, Tea, MirrorFrame/Stand, LipStickMark, Book.001/.002, PlantPot, the four `PictureMirawith…Frame` meshes) — fan them to the canonical clue if testers click the wrong piece.
-- Camera initial position + constraints are seeded by `main.js` with hardcoded values, not read from `level.camera`. Move into `level-runner.js` when Step 14 brings real per-level GLBs.
-- Levels 2–5 GLBs are byte-identical copies of Level 1 (placeholder). Real per-level authoring is Step 14. Level 2's content file is a minimal stub — it gates the MCQ on a single clue (`clue-l2-laptop`) so the transition is QA-able end-to-end.
+- `level-02.js` is now real-authored against `level-02.glb` (Saturday-night hangout). 15 interactives wired; the L2-specific meshes are `Donut`, `Culprit` (visitor silhouette), `Mira` / `Mira.001` (Mira herself, alive), `Cup.001` / `Saucer.001` / `Tea.001` (visitor's white guest cup), `Saucer.002`, and `handbag` / `Handbag` / `HandbagBrand` (Briq tote). `requiredClues` gates on `clue-l2-cup-residue` + `clue-l2-donut` (powder + top-eaten donut → poisoning). The MCQ matches the story bible's "WEAPON: how was she killed?" question, **not** the old stub's "who was she preparing to confront?". Sibling fan-out (Saucer/Tea → Cup, Saucer.001/Tea.001 → Cup.001, frames → portraits, etc.) is not authored yet — the picker resolves only the canonical mesh names listed in `interactives`. Fan them in if testers click siblings and get nothing.
+- Camera initial position + constraints are seeded by `main.js` with hardcoded values, not read from `level.camera`. Move into `level-runner.js` when the remaining levels (3-7) bring more diverse per-level GLBs.
+- Levels 3-5 placeholder GLBs were deleted from `assets/models/` during the L2 cycle and have not been re-added. Until L3 ships, do not attempt to advance beyond L2 from gameplay or the dev-overlay's "Advance to next level" — the loader will 404. Recreate or skip when authoring L3.
 - All `level.audio.ambient` URLs are currently `null`. The audio system handles null fine (no playback, no errors), but every level will be silent until the audio drops land in `assets/audio/ambient/`. Track names referenced in level files: `crime-scene-silence.mp3` (L1), `saturday-night.mp3` (L2).
 - Loader cache is single-use: `loadLevel(url)` caches the gltf, `disposeLevel()` evicts it. This means revisiting a level re-downloads + re-parses the GLB. Fine for the jam; if preloading becomes important, switch to `SkeletonUtils.clone(gltf.scene)` per revisit and drop the eviction.
+
+**Auditing what's actually in a GLB** — the picker silently no-ops on mesh keys that don't resolve, so when authoring a `level-NN.js` against a fresh export, dump the real node names first instead of guessing. From the repo root:
+
+```bash
+node -e "const fs=require('fs');const b=fs.readFileSync('assets/models/level-02.glb');const len=b.readUInt32LE(12);const j=JSON.parse(b.slice(20,20+len).toString('utf8'));(j.nodes||[]).map(n=>n.name).filter(Boolean).forEach(n=>console.log(n));"
+```
+
+Reads the GLB's JSON chunk directly — no Three.js needed, runs in milliseconds. Useful when the modeler ships new objects and you need the canonical names before writing content.
 
 **Don't reorder steps** — each is designed to leave the game runnable, and earlier steps unblock later ones.
