@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Room Explorer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap');
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --dawn:   #ff8c5a;
+    --day:    #e0f0ff;
+    --dusk:   #e06b3a;
+    --night:  #0a0e1a;
+    --accent: #f5c842;
+    --ui-bg:  rgba(10,14,26,0.82);
+    --ui-border: rgba(245,200,66,0.25);
+  }
+
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0e1a; }
+
+  #canvas-container {
+    position: fixed; inset: 0;
+    transition: background 1.2s ease;
+  }
+
+  canvas { display: block; width: 100% !important; height: 100% !important; }
+
+  /* ── HUD ─────────────────────────────────── */
+  #hud {
+    position: fixed; inset: 0; pointer-events: none;
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* Top-left title */
+  #title-block {
+    position: absolute; top: 28px; left: 32px;
+    pointer-events: none;
+  }
+  #title-block h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px; font-weight: 800;
+    letter-spacing: 0.08em; color: #fff;
+    text-shadow: 0 0 24px rgba(245,200,66,0.4);
+  }
+  #title-block p {
+    font-size: 10px; color: rgba(255,255,255,0.4);
+    letter-spacing: 0.18em; text-transform: uppercase; margin-top: 3px;
+  }
+
+  /* Selected object badge */
+  #selected-badge {
+    position: absolute; top: 28px; left: 50%;
+    transform: translateX(-50%);
+    background: var(--ui-bg);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-size: 11px; letter-spacing: 0.15em;
+    padding: 7px 18px; border-radius: 20px;
+    text-transform: uppercase;
+    opacity: 0; transition: opacity 0.3s;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  #selected-badge.visible { opacity: 1; }
+
+  /* Right controls panel */
+  #controls-panel {
+    position: absolute; right: 28px; top: 50%;
+    transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 10px;
+    pointer-events: all;
+  }
+
+  .ctrl-btn {
+    width: 46px; height: 46px;
+    background: var(--ui-bg);
+    border: 1px solid var(--ui-border);
+    border-radius: 10px;
+    color: rgba(255,255,255,0.75);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .ctrl-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: 0 0 16px rgba(245,200,66,0.2);
+  }
+  .ctrl-btn:active { transform: scale(0.93); }
+  .ctrl-btn.active {
+    border-color: var(--accent);
+    background: rgba(245,200,66,0.12);
+    color: var(--accent);
+  }
+
+  .ctrl-divider {
+    width: 100%; height: 1px;
+    background: var(--ui-border);
+    margin: 4px 0;
+  }
+
+  /* Time-of-day panel */
+  #tod-panel {
+    position: absolute; bottom: 32px; left: 50%;
+    transform: translateX(-50%);
+    background: var(--ui-bg);
+    border: 1px solid var(--ui-border);
+    border-radius: 14px;
+    padding: 14px 20px;
+    pointer-events: all;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    min-width: 300px;
+  }
+
+  #tod-label {
+    font-size: 10px; letter-spacing: 0.2em;
+    text-transform: uppercase; color: rgba(255,255,255,0.45);
+  }
+
+  #tod-buttons {
+    display: flex; gap: 8px;
+  }
+
+  .tod-btn {
+    padding: 7px 14px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px; letter-spacing: 0.12em;
+    text-transform: uppercase;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px;
+    color: rgba(255,255,255,0.55);
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .tod-btn:hover {
+    border-color: rgba(255,255,255,0.35);
+    color: #fff;
+  }
+  .tod-btn.active {
+    background: rgba(245,200,66,0.14);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .tod-icon { font-size: 13px; }
+
+  #tod-slider-row {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+  }
+  #tod-slider-row span { font-size: 10px; color: rgba(255,255,255,0.3); }
+
+  input[type=range] {
+    -webkit-appearance: none; flex: 1; height: 3px;
+    background: linear-gradient(90deg, #ff8c5a 0%, #ffe57a 33%, #e06b3a 66%, #1a2040 100%);
+    border-radius: 2px; outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px;
+    background: var(--accent); border-radius: 50%;
+    box-shadow: 0 0 8px rgba(245,200,66,0.6);
+  }
+
+  /* Bottom-left hint */
+  #hint {
+    position: absolute; bottom: 32px; left: 32px;
+    font-size: 10px; color: rgba(255,255,255,0.25);
+    letter-spacing: 0.12em; line-height: 1.8;
+    pointer-events: none;
+  }
+
+  /* Loading overlay */
+  #loading {
+    position: fixed; inset: 0;
+    background: #0a0e1a;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 20px; z-index: 100;
+    transition: opacity 0.6s;
+  }
+  #loading.hidden { opacity: 0; pointer-events: none; }
+  #loading h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px; color: rgba(255,255,255,0.7);
+    letter-spacing: 0.15em;
+  }
+  .load-bar-wrap {
+    width: 220px; height: 2px;
+    background: rgba(255,255,255,0.08); border-radius: 2px;
+  }
+  .load-bar {
+    height: 100%; width: 0%;
+    background: var(--accent); border-radius: 2px;
+    transition: width 0.4s;
+    box-shadow: 0 0 8px var(--accent);
+  }
+  #load-msg {
+    font-size: 11px; color: rgba(255,255,255,0.3);
+    letter-spacing: 0.15em; text-transform: uppercase;
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* Drop zone */
+  #drop-hint {
+    position: fixed; bottom: 110px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(245,200,66,0.1);
+    border: 1px dashed rgba(245,200,66,0.4);
+    padding: 10px 22px; border-radius: 10px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px; letter-spacing: 0.15em;
+    color: rgba(245,200,66,0.7);
+    text-transform: uppercase;
+    pointer-events: none;
+    transition: opacity 0.5s;
+  }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <h2>ROOM EXPLORER</h2>
+  <div class="load-bar-wrap"><div class="load-bar" id="load-bar"></div></div>
+  <div id="load-msg">Initialising scene…</div>
+</div>
+
+<div id="canvas-container"></div>
+
+<div id="hud">
+  <div id="title-block">
+    <h1>ROOM EXPLORER</h1>
+    <p>Interactive 3D Scene</p>
+  </div>
+
+  <div id="selected-badge">Nothing selected</div>
+
+  <div id="controls-panel">
+    <button class="ctrl-btn" id="btn-zoom-in"  title="Zoom In">＋</button>
+    <button class="ctrl-btn" id="btn-zoom-out" title="Zoom Out">－</button>
+    <div class="ctrl-divider"></div>
+    <button class="ctrl-btn" id="btn-reset" title="Reset Camera">⌖</button>
+    <div class="ctrl-divider"></div>
+    <button class="ctrl-btn" id="btn-auto-rotate" title="Auto Rotate">↻</button>
+    <button class="ctrl-btn" id="btn-wireframe" title="Wireframe">⬡</button>
+  </div>
+
+  <div id="tod-panel">
+    <div id="tod-label">Time of Day</div>
+    <div id="tod-buttons">
+      <button class="tod-btn" data-tod="dawn"><span class="tod-icon">🌅</span>Dawn</button>
+      <button class="tod-btn active" data-tod="day"><span class="tod-icon">☀️</span>Day</button>
+      <button class="tod-btn" data-tod="dusk"><span class="tod-icon">🌇</span>Dusk</button>
+      <button class="tod-btn" data-tod="night"><span class="tod-icon">🌙</span>Night</button>
+    </div>
+    <div id="tod-slider-row">
+      <span>🌅</span>
+      <input type="range" id="tod-slider" min="0" max="100" value="35">
+      <span>🌙</span>
+    </div>
+  </div>
+
+  <div id="hint">
+    Drag to rotate · Scroll to zoom<br>
+    Click any object to inspect
+  </div>
+</div>
+
+<div id="drop-hint">Drop a .GLB file to load your room model</div>
+
+<!-- Three.js via CDN -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+// Make THREE globally available for dynamically-loaded scripts
+window.THREE = THREE;
+
+/* ── Helpers not on CDN: inline minimal OrbitControls + GLTFLoader stubs ── */
+
+// ── Minimal OrbitControls ──────────────────────────────────────────────────
+class OrbitControls {
+  constructor(camera, domElement) {
+    this.camera = camera;
+    this.domElement = domElement;
+    this.target = new THREE.Vector3();
+    this.enableDamping = true;
+    this.dampingFactor = 0.08;
+    this.autoRotate = false;
+    this.autoRotateSpeed = 1.2;
+    this.minDistance = 2;
+    this.maxDistance = 30;
+    this.minPolarAngle = 0.1;
+    this.maxPolarAngle = Math.PI / 2.2;
+
+    this._spherical = new THREE.Spherical();
+    this._sphericalDelta = new THREE.Spherical();
+    this._scale = 1;
+    this._rotateStart = new THREE.Vector2();
+    this._rotateEnd   = new THREE.Vector2();
+    this._rotateDelta = new THREE.Vector2();
+    this._isDragging = false;
+
+    // compute initial spherical from camera position
+    const offset = camera.position.clone().sub(this.target);
+    this._spherical.setFromVector3(offset);
+
+    this._onPointerDown = this._onPointerDown.bind(this);
+    this._onPointerMove = this._onPointerMove.bind(this);
+    this._onPointerUp   = this._onPointerUp.bind(this);
+    this._onWheel       = this._onWheel.bind(this);
+    this._onTouchStart  = this._onTouchStart.bind(this);
+    this._onTouchMove   = this._onTouchMove.bind(this);
+
+    domElement.addEventListener('pointerdown', this._onPointerDown);
+    domElement.addEventListener('pointermove', this._onPointerMove);
+    domElement.addEventListener('pointerup',   this._onPointerUp);
+    domElement.addEventListener('wheel',       this._onWheel, {passive:false});
+    domElement.addEventListener('touchstart',  this._onTouchStart, {passive:false});
+    domElement.addEventListener('touchmove',   this._onTouchMove,  {passive:false});
+  }
+
+  _onPointerDown(e) {
+    if (e.button !== 0) return;
+    this._isDragging = true;
+    this._rotateStart.set(e.clientX, e.clientY);
+    this.domElement.setPointerCapture(e.pointerId);
+  }
+  _onPointerMove(e) {
+    if (!this._isDragging) return;
+    this._rotateEnd.set(e.clientX, e.clientY);
+    this._rotateDelta.subVectors(this._rotateEnd, this._rotateStart).multiplyScalar(0.005);
+    this._sphericalDelta.theta -= this._rotateDelta.x;
+    this._sphericalDelta.phi   -= this._rotateDelta.y;
+    this._rotateStart.copy(this._rotateEnd);
+  }
+  _onPointerUp() { this._isDragging = false; }
+  _onWheel(e) {
+    e.preventDefault();
+    this._scale *= e.deltaY > 0 ? 1.1 : 0.9;
+  }
+  _onTouchStart(e) {
+    if (e.touches.length === 1) {
+      this._isDragging = true;
+      this._rotateStart.set(e.touches[0].clientX, e.touches[0].clientY);
+    }
+  }
+  _onTouchMove(e) {
+    e.preventDefault();
+    if (e.touches.length === 1 && this._isDragging) {
+      this._rotateEnd.set(e.touches[0].clientX, e.touches[0].clientY);
+      this._rotateDelta.subVectors(this._rotateEnd, this._rotateStart).multiplyScalar(0.005);
+      this._sphericalDelta.theta -= this._rotateDelta.x;
+      this._sphericalDelta.phi   -= this._rotateDelta.y;
+      this._rotateStart.copy(this._rotateEnd);
+    }
+  }
+
+  zoomIn()  { this._scale *= 0.85; }
+  zoomOut() { this._scale *= 1.18; }
+
+  resetTo(pos, target) {
+    this.target.copy(target);
+    const offset = pos.clone().sub(target);
+    this._spherical.setFromVector3(offset);
+    this._sphericalDelta.set(0,0,0);
+    this._scale = 1;
+  }
+
+  update() {
+    if (this.autoRotate) this._sphericalDelta.theta -= 0.008 * (this.autoRotateSpeed / 10);
+
+    this._spherical.theta += this._sphericalDelta.theta;
+    this._spherical.phi   += this._sphericalDelta.phi;
+    this._spherical.phi    = Math.max(this.minPolarAngle, Math.min(this.maxPolarAngle, this._spherical.phi));
+    this._spherical.radius *= this._scale;
+    this._spherical.radius = Math.max(this.minDistance, Math.min(this.maxDistance, this._spherical.radius));
+
+    if (this.enableDamping) {
+      this._sphericalDelta.theta *= (1 - this.dampingFactor);
+      this._sphericalDelta.phi   *= (1 - this.dampingFactor);
+    } else {
+      this._sphericalDelta.set(0, 0, 0);
+    }
+    this._scale = 1;
+
+    const offset = new THREE.Vector3().setFromSpherical(this._spherical);
+    this.camera.position.copy(this.target).add(offset);
+    this.camera.lookAt(this.target);
+  }
+
+  dispose() {
+    this.domElement.removeEventListener('pointerdown', this._onPointerDown);
+    this.domElement.removeEventListener('pointermove', this._onPointerMove);
+    this.domElement.removeEventListener('pointerup',   this._onPointerUp);
+    this.domElement.removeEventListener('wheel',       this._onWheel);
+  }
+}
+
+// ── GLTF Loader (full fetch-based) ────────────────────────────────────────
+async function loadGLB(url, onProgress) {
+  // Dynamic import approach using a script-tag trick for the CDN version
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/loaders/GLTFLoader.js';
+    script.onload = () => {
+      const loader = new THREE.GLTFLoader();
+      loader.load(url, resolve, onProgress, reject);
+    };
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
+
+// ── Scene Setup ───────────────────────────────────────────────────────────
+const container = document.getElementById('canvas-container');
+const W = () => window.innerWidth, H = () => window.innerHeight;
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(W(), H());
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+container.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x0a0e1a, 0.04);
+
+const camera = new THREE.PerspectiveCamera(45, W()/H(), 0.1, 200);
+camera.position.set(8, 8, 8);
+camera.lookAt(0, 0, 0);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1, 0);
+controls._spherical.setFromVector3(camera.position.clone().sub(controls.target));
+
+// ── Lighting ──────────────────────────────────────────────────────────────
+const ambientLight   = new THREE.AmbientLight(0xffffff, 0.4);
+const sunLight       = new THREE.DirectionalLight(0xfff5e0, 1.8);
+sunLight.position.set(8, 14, 6);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.set(2048, 2048);
+sunLight.shadow.camera.near = 0.1;
+sunLight.shadow.camera.far = 60;
+sunLight.shadow.camera.left = sunLight.shadow.camera.bottom = -12;
+sunLight.shadow.camera.right = sunLight.shadow.camera.top = 12;
+sunLight.shadow.bias = -0.001;
+
+const fillLight  = new THREE.DirectionalLight(0x8aaeff, 0.5);
+fillLight.position.set(-6, 4, -4);
+
+const rimLight   = new THREE.PointLight(0xff9966, 0.6, 30);
+rimLight.position.set(-4, 8, -4);
+
+scene.add(ambientLight, sunLight, fillLight, rimLight);
+
+// ── Ground grid (aesthetic) ───────────────────────────────────────────────
+const gridHelper = new THREE.GridHelper(40, 40, 0x1a2240, 0x111828);
+gridHelper.position.y = -0.02;
+scene.add(gridHelper);
+
+// ── Time-of-Day configs ───────────────────────────────────────────────────
+const TOD = {
+  dawn: {
+    bg: '#1a0d20', fog: 0x2a1030,
+    ambient: [0xffb87a, 0.55], sun: [0xff8c5a, 1.1], sunPos: [6, 3, 8],
+    fill: [0x6633aa, 0.3], rim: [0xff6633, 0.9], exposure: 0.95
+  },
+  day: {
+    bg: '#0a1830', fog: 0x0a1830,
+    ambient: [0xfff0d0, 0.6], sun: [0xffeebb, 2.0], sunPos: [8, 14, 6],
+    fill: [0x8aaeff, 0.5], rim: [0xff9966, 0.5], exposure: 1.1
+  },
+  dusk: {
+    bg: '#1a0808', fog: 0x200808,
+    ambient: [0xff7030, 0.5], sun: [0xff4400, 1.0], sunPos: [10, 2, 4],
+    fill: [0x330033, 0.3], rim: [0xff3300, 1.2], exposure: 0.85
+  },
+  night: {
+    bg: '#020408', fog: 0x020408,
+    ambient: [0x101830, 0.3], sun: [0x2030ff, 0.1], sunPos: [8, 14, 6],
+    fill: [0x0a0a2a, 0.1], rim: [0x3355ff, 0.8], exposure: 0.6
+  }
+};
+
+let currentTOD = 'day';
+let targetTOD  = { ...TOD.day };
+
+function applyTOD(name, instant = false) {
+  currentTOD = name;
+  const t = TOD[name];
+  container.style.background = t.bg;
+
+  const lerp = instant ? 1 : 1;
+  ambientLight.color.set(t.ambient[0]);    ambientLight.intensity = t.ambient[1];
+  sunLight.color.set(t.sun[0]);            sunLight.intensity = t.sun[1];
+  sunLight.position.set(...t.sunPos);
+  fillLight.color.set(t.fill[0]);          fillLight.intensity = t.fill[1];
+  rimLight.color.set(t.rim[0]);            rimLight.intensity = t.rim[1];
+  renderer.toneMappingExposure = t.exposure;
+  scene.fog.color.set(t.fog);
+  document.querySelectorAll('.tod-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.tod === name));
+}
+
+// Slider → blend between presets
+const TOD_ORDER = ['dawn', 'day', 'dusk', 'night'];
+function applySlider(v) {
+  const idx = v / 100 * (TOD_ORDER.length - 1);
+  const lo = Math.floor(idx), hi = Math.min(lo + 1, TOD_ORDER.length - 1);
+  const t  = idx - lo;
+  const A  = TOD[TOD_ORDER[lo]], B = TOD[TOD_ORDER[hi]];
+  const lerp = (a,b,t) => a + (b-a)*t;
+  const lerpCol = (ca,cb,t) => {
+    const a = new THREE.Color(ca), b = new THREE.Color(cb);
+    return new THREE.Color(lerp(a.r,b.r,t), lerp(a.g,b.g,t), lerp(a.b,b.b,t));
+  };
+  ambientLight.color.copy(lerpCol(A.ambient[0],B.ambient[0],t));
+  ambientLight.intensity = lerp(A.ambient[1],B.ambient[1],t);
+  sunLight.color.copy(lerpCol(A.sun[0],B.sun[0],t));
+  sunLight.intensity = lerp(A.sun[1],B.sun[1],t);
+  sunLight.position.set(
+    lerp(A.sunPos[0],B.sunPos[0],t),
+    lerp(A.sunPos[1],B.sunPos[1],t),
+    lerp(A.sunPos[2],B.sunPos[2],t));
+  fillLight.color.copy(lerpCol(A.fill[0],B.fill[0],t));
+  fillLight.intensity = lerp(A.fill[1],B.fill[1],t);
+  rimLight.color.copy(lerpCol(A.rim[0],B.rim[0],t));
+  rimLight.intensity = lerp(A.rim[1],B.rim[1],t);
+  renderer.toneMappingExposure = lerp(A.exposure,B.exposure,t);
+  document.querySelectorAll('.tod-btn').forEach(b => b.classList.remove('active'));
+}
+
+applyTOD('day', true);
+
+// ── Demo room (fallback if no GLB is dropped) ─────────────────────────────
+let modelRoot = null;
+let clickableObjects = [];
+
+function buildDemoRoom() {
+  setLoadMsg('Building demo room…'); setLoadProgress(60);
+
+  const root = new THREE.Group();
+  const mat = (col, rough=0.6, metal=0.1) => new THREE.MeshStandardMaterial({color:col,roughness:rough,metalness:metal});
+
+  // Floor
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(6,0.1,6), mat(0x8a7a6a,0.9,0));
+  floor.position.y = -0.05; floor.receiveShadow = true;
+  root.add(floor);
+
+  // Walls
+  const backWall = new THREE.Mesh(new THREE.BoxGeometry(6,4,0.1), mat(0x5a6a8a,0.8,0));
+  backWall.position.set(0,2,-3); backWall.receiveShadow = true;
+  root.add(backWall);
+
+  const sideWall = new THREE.Mesh(new THREE.BoxGeometry(0.1,4,6), mat(0x4a5a7a,0.8,0));
+  sideWall.position.set(-3,2,0); sideWall.receiveShadow = true;
+  root.add(sideWall);
+
+  // Bed
+  const bedBase = new THREE.Mesh(new THREE.BoxGeometry(2.2,0.4,3.2), mat(0x3a3a4a,0.7,0.1));
+  bedBase.position.set(-0.8,0.2,-0.5); bedBase.castShadow = true; bedBase.name = 'Bed Frame';
+  root.add(bedBase);
+
+  const mattress = new THREE.Mesh(new THREE.BoxGeometry(2.0,0.3,3.0), mat(0x556688,0.5,0));
+  mattress.position.set(-0.8,0.55,-0.5); mattress.castShadow = true; mattress.name = 'Mattress';
+  root.add(mattress);
+
+  const pillow = new THREE.Mesh(new THREE.BoxGeometry(0.8,0.18,0.55), mat(0x889aaa,0.4,0));
+  pillow.position.set(-0.8,0.77,-1.7); pillow.castShadow = true; pillow.name = 'Pillow';
+  root.add(pillow);
+
+  // Desk
+  const desk = new THREE.Mesh(new THREE.BoxGeometry(2.0,0.08,1.0), mat(0x6b4a2a,0.7,0.05));
+  desk.position.set(1.8,0.75,1.0); desk.castShadow = true; desk.receiveShadow = true; desk.name = 'Desk';
+  root.add(desk);
+
+  // Monitor
+  const monBase = new THREE.Mesh(new THREE.BoxGeometry(0.1,0.5,0.1), mat(0x1a1a1a,0.4,0.5));
+  monBase.position.set(1.8,1.0,0.7); monBase.castShadow = true;
+  root.add(monBase);
+  const monScreen = new THREE.Mesh(new THREE.BoxGeometry(1.0,0.6,0.06), mat(0x0a0e18,0.2,0.8));
+  monScreen.position.set(1.8,1.4,0.7); monScreen.castShadow = true; monScreen.name = 'Monitor';
+  root.add(monScreen);
+
+  // Chair
+  const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(0.6,0.08,0.6), mat(0x2a2a2a,0.5,0.3));
+  chairSeat.position.set(1.8,0.55,1.8); chairSeat.castShadow = true; chairSeat.name = 'Chair Seat';
+  root.add(chairSeat);
+  const chairBack = new THREE.Mesh(new THREE.BoxGeometry(0.6,0.7,0.06), mat(0x2a2a2a,0.5,0.3));
+  chairBack.position.set(1.8,0.95,1.5); chairBack.castShadow = true; chairBack.name = 'Chair Back';
+  root.add(chairBack);
+
+  // Posters on wall
+  const posterColors = [0xe8821a, 0xcc2222, 0x3355aa];
+  const posterNames  = ['Dune Poster','Kill Bill Poster','Wanted Poster'];
+  posterColors.forEach((c,i) => {
+    const p = new THREE.Mesh(new THREE.BoxGeometry(0.6,0.85,0.02), mat(c,0.9,0));
+    p.position.set(-2.1 + i*0.85, 2.5, -2.94); p.name = posterNames[i];
+    root.add(p);
+  });
+
+  // Guitar on bed
+  const guitar = new THREE.Mesh(new THREE.BoxGeometry(0.25,0.1,1.1), mat(0xcc8833,0.6,0.1));
+  guitar.position.set(-0.2,0.75,0); guitar.rotation.y = 0.3; guitar.castShadow = true; guitar.name = 'Guitar';
+  root.add(guitar);
+
+  // Lamp
+  const lampPost = new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.6), mat(0xaaaaaa,0.3,0.8));
+  lampPost.position.set(-1.5,0.3,2.5);
+  root.add(lampPost);
+  const lampShade = new THREE.Mesh(new THREE.ConeGeometry(0.22,0.3,12), mat(0xeeddbb,0.4,0));
+  lampShade.position.set(-1.5,0.75,2.5); lampShade.name = 'Floor Lamp';
+  root.add(lampShade);
+  const lampGlow  = new THREE.PointLight(0xffddaa,0.8,3);
+  lampGlow.position.set(-1.5,0.95,2.5);
+  root.add(lampGlow);
+
+  // Nightstand
+  const ns = new THREE.Mesh(new THREE.BoxGeometry(0.6,0.55,0.55), mat(0x5a3a1a,0.7,0.05));
+  ns.position.set(-1.9,0.28,-2.0); ns.castShadow = true; ns.name = 'Nightstand';
+  root.add(ns);
+
+  // Window
+  const winFrame = new THREE.Mesh(new THREE.BoxGeometry(2.0,1.5,0.08), mat(0x8b6a4a,0.7,0.1));
+  winFrame.position.set(0.8,2.5,-2.94); winFrame.name = 'Window';
+  root.add(winFrame);
+  const winGlass = new THREE.Mesh(new THREE.BoxGeometry(1.8,1.3,0.02),
+    new THREE.MeshStandardMaterial({color:0x88aacc,opacity:0.25,transparent:true,roughness:0.1,metalness:0.1}));
+  winGlass.position.set(0.8,2.5,-2.92);
+  root.add(winGlass);
+
+  // Rubik's cube on desk
+  const cube = new THREE.Mesh(new THREE.BoxGeometry(0.18,0.18,0.18), mat(0xff3322,0.3,0.1));
+  cube.position.set(2.4,0.88,0.9); cube.name = "Rubik's Cube";
+  root.add(cube);
+
+  scene.add(root);
+  modelRoot = root;
+
+  // Collect clickable meshes
+  root.traverse(obj => {
+    if (obj.isMesh && obj.name) clickableObjects.push(obj);
+  });
+
+  setLoadProgress(100);
+  setTimeout(() => document.getElementById('loading').classList.add('hidden'), 600);
+}
+
+// ── Click highlight ───────────────────────────────────────────────────────
+const originalMaterials = new Map();
+let selectedObj = null;
+
+const highlightMat = new THREE.MeshStandardMaterial({
+  color: 0xf5c842, emissive: 0xf5c842, emissiveIntensity: 0.35,
+  roughness: 0.3, metalness: 0.2
+});
+
+function selectObject(obj) {
+  // Deselect previous
+  if (selectedObj && originalMaterials.has(selectedObj.uuid)) {
+    selectedObj.material = originalMaterials.get(selectedObj.uuid);
+  }
+
+  if (obj === selectedObj) {
+    selectedObj = null;
+    badge.textContent = '';
+    badge.classList.remove('visible');
+    return;
+  }
+
+  if (obj) {
+    if (!originalMaterials.has(obj.uuid)) {
+      originalMaterials.set(obj.uuid, obj.material);
+    }
+    // Create tinted version
+    const base = originalMaterials.get(obj.uuid);
+    const hl = base.clone();
+    hl.emissive = new THREE.Color(0xf5c842);
+    hl.emissiveIntensity = 0.4;
+    hl.color = new THREE.Color(0xf5e080);
+    obj.material = hl;
+    selectedObj = obj;
+
+    badge.textContent = `▸ ${obj.name || 'Object'}`;
+    badge.classList.add('visible');
+  }
+}
+
+// ── Raycasting ────────────────────────────────────────────────────────────
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let mouseDownPos = new THREE.Vector2();
+
+renderer.domElement.addEventListener('pointerdown', e => {
+  mouseDownPos.set(e.clientX, e.clientY);
+});
+
+renderer.domElement.addEventListener('pointerup', e => {
+  const dx = e.clientX - mouseDownPos.x, dy = e.clientY - mouseDownPos.y;
+  if (Math.sqrt(dx*dx+dy*dy) > 4) return; // was a drag
+
+  mouse.x =  (e.clientX / W()) * 2 - 1;
+  mouse.y = -(e.clientY / H()) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+
+  const hits = raycaster.intersectObjects(clickableObjects, false);
+  selectObject(hits.length ? hits[0].object : null);
+});
+
+// ── Wireframe toggle ──────────────────────────────────────────────────────
+let wireframe = false;
+document.getElementById('btn-wireframe').addEventListener('click', () => {
+  wireframe = !wireframe;
+  document.getElementById('btn-wireframe').classList.toggle('active', wireframe);
+  if (modelRoot) {
+    modelRoot.traverse(obj => {
+      if (obj.isMesh && obj.material) obj.material.wireframe = wireframe;
+    });
+  }
+});
+
+// ── Auto-rotate toggle ────────────────────────────────────────────────────
+document.getElementById('btn-auto-rotate').addEventListener('click', () => {
+  controls.autoRotate = !controls.autoRotate;
+  document.getElementById('btn-auto-rotate').classList.toggle('active', controls.autoRotate);
+});
+
+// ── Zoom buttons ──────────────────────────────────────────────────────────
+document.getElementById('btn-zoom-in').addEventListener('click',  () => controls.zoomIn());
+document.getElementById('btn-zoom-out').addEventListener('click', () => controls.zoomOut());
+
+// ── Reset ─────────────────────────────────────────────────────────────────
+const defaultCamPos = new THREE.Vector3(8,8,8);
+const defaultTarget = new THREE.Vector3(0,1,0);
+document.getElementById('btn-reset').addEventListener('click', () => {
+  controls.resetTo(defaultCamPos, defaultTarget);
+  selectObject(null);
+});
+
+// ── TOD buttons ───────────────────────────────────────────────────────────
+document.querySelectorAll('.tod-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    applyTOD(btn.dataset.tod);
+    const vals = {dawn:10, day:35, dusk:65, night:90};
+    document.getElementById('tod-slider').value = vals[btn.dataset.tod];
+  });
+});
+
+document.getElementById('tod-slider').addEventListener('input', e => {
+  applySlider(parseInt(e.target.value));
+});
+
+// ── GLB drag-and-drop ─────────────────────────────────────────────────────
+const dropHint = document.getElementById('drop-hint');
+
+window.addEventListener('dragover', e => { e.preventDefault(); dropHint.style.opacity = '1'; });
+window.addEventListener('dragleave', () => { dropHint.style.opacity = '0.6'; });
+window.addEventListener('drop', async e => {
+  e.preventDefault();
+  dropHint.style.opacity = '0';
+  const file = e.dataTransfer.files[0];
+  if (!file || !file.name.endsWith('.glb')) return;
+
+  document.getElementById('loading').classList.remove('hidden');
+  document.getElementById('load-bar').style.width = '0%';
+  setLoadMsg('Loading your model…');
+
+  const url = URL.createObjectURL(file);
+  try {
+    const gltf = await loadGLBFromURL(url);
+    if (modelRoot) scene.remove(modelRoot);
+    clickableObjects = [];
+    modelRoot = gltf.scene;
+
+    // Auto-center
+    const box = new THREE.Box3().setFromObject(modelRoot);
+    const center = box.getCenter(new THREE.Vector3());
+    const size   = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const scale  = 6 / maxDim;
+    modelRoot.scale.setScalar(scale);
+    modelRoot.position.sub(center.multiplyScalar(scale));
+    modelRoot.position.y = 0;
+
+    modelRoot.traverse(obj => {
+      if (obj.isMesh) {
+        obj.castShadow    = true;
+        obj.receiveShadow = true;
+        if (obj.name) clickableObjects.push(obj);
+      }
+    });
+
+    scene.add(modelRoot);
+    setLoadProgress(100);
+    setTimeout(() => document.getElementById('loading').classList.add('hidden'), 500);
+  } catch(err) {
+    setLoadMsg('Error loading model');
+    console.error(err);
+  }
+});
+
+async function loadGLBFromURL(url) {
+  return new Promise((resolve, reject) => {
+    if (window.THREE && window.THREE.GLTFLoader) {
+      const loader = new window.THREE.GLTFLoader();
+      loader.load(url, resolve, p => setLoadProgress(Math.round(p.loaded/p.total*90)), reject);
+    } else {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/loaders/GLTFLoader.js';
+      s.onload = () => {
+        const loader = new window.THREE.GLTFLoader();
+        loader.load(url, resolve, p => setLoadProgress(Math.round(p.loaded/p.total*90)), reject);
+      };
+      s.onerror = reject;
+      document.head.appendChild(s);
+    }
+  });
+}
+
+// ── Loading helpers ───────────────────────────────────────────────────────
+const badge = document.getElementById('selected-badge');
+function setLoadProgress(v) { document.getElementById('load-bar').style.width = v+'%'; }
+function setLoadMsg(m)      { document.getElementById('load-msg').textContent = m; }
+
+// ── Animate selection pulse ───────────────────────────────────────────────
+let pulse = 0;
+function pulseSelected() {
+  if (!selectedObj) return;
+  pulse += 0.05;
+  const mat = selectedObj.material;
+  if (mat && mat.emissive) {
+    mat.emissiveIntensity = 0.3 + Math.sin(pulse) * 0.15;
+  }
+}
+
+// ── Resize ────────────────────────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  camera.aspect = W()/H();
+  camera.updateProjectionMatrix();
+  renderer.setSize(W(), H());
+});
+
+// ── Render loop ───────────────────────────────────────────────────────────
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  pulseSelected();
+  renderer.render(scene, camera);
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+setLoadMsg('Setting up renderer…');
+setLoadProgress(20);
+setTimeout(async () => {
+  setLoadMsg('Loading your model…');
+  setLoadProgress(40);
+  try {
+    const gltf = await loadGLBFromURL('Models/1room.glb');
+    clickableObjects = [];
+    modelRoot = gltf.scene;
+
+    // Auto-center
+    const box = new THREE.Box3().setFromObject(modelRoot);
+    const center = box.getCenter(new THREE.Vector3());
+    const size   = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const scale  = 6 / maxDim;
+    modelRoot.scale.setScalar(scale);
+    modelRoot.position.sub(center.multiplyScalar(scale));
+    modelRoot.position.y = 0;
+
+    modelRoot.traverse(obj => {
+      if (obj.isMesh) {
+        obj.castShadow    = true;
+        obj.receiveShadow = true;
+        if (obj.name) clickableObjects.push(obj);
+      }
+    });
+
+    scene.add(modelRoot);
+    setLoadProgress(100);
+    setTimeout(() => document.getElementById('loading').classList.add('hidden'), 500);
+    animate();
+  } catch(err) {
+    console.warn('Could not load Models/1room.glb, falling back to demo:', err);
+    setLoadMsg('Building demo room…');
+    buildDemoRoom();
+    animate();
+  }
+}, 200);
+
+// Fade drop hint after 4s
+setTimeout(() => { dropHint.style.opacity = '0'; }, 4000);
+setTimeout(() => { dropHint.style.display = 'none'; }, 5000);
+</script>
+</body>
+</html>
