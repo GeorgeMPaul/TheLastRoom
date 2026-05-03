@@ -166,7 +166,7 @@ export default {
       { id: 'c', text: 'Natural causes', correct: false },
       { id: 'd', text: 'Suicide',        correct: false },
     ],
-    requiredClues: ['clue-cup-residue', 'clue-guitar-capo'],
+    requiredClues: ['clue-cup-residue', 'clue-rug-impressions'],
     onWrong: { shake: true, disable: true },
   },
 
@@ -345,7 +345,7 @@ End-to-end test plan:
 5. **Picker isolation:** With clue panel, notes view, or question panel open, clicking the canvas behind it should do nothing (picker `inputBlocked: true`). Closing the modal restores hover + click.
 6. **Dev mode:** `?dev=1` shows overlay. Pick any entry in the clue dropdown → that clue panel opens (and the clue is marked discovered). "Open question panel" works regardless of `requiredClues` state. "Open notes view" works. "Reveal all clues" enables the Answer button immediately. "Mark level answered" flips the HUD to "Answered ✓". "Toggle mesh-name overlay" lists every interactive name with ✓/✗ resolution. "Reset" wipes localStorage and reloads.
 7. **Notes search:** With ~10 notes across folders, search bar filters across all folders. The search runs against `note.content`, case-insensitive, substring match.
-8. **Required-clues gating:** In Level 1, the Answer button is disabled until both `requiredClues` (`clue-rug-impressions` from the laptop and `clue-guitar-capo` from the ukulele — temporarily, see Standing caveats in CLAUDE.md) are discovered. Discovering them enables it; the helper text under the button updates.
+8. **Required-clues gating:** In Level 1, the Answer button is disabled until both `requiredClues` (`clue-cup-residue` from the cup and `clue-rug-impressions` from the laptop) are discovered. Discovering them enables it; the helper text under the button updates.
 9. **Wrong-answer behavior:** Picking a wrong option on the MCQ shakes the card (CSS keyframe, ~450ms) and disables that specific option. Picking the correct option flashes green for ~700ms before the panel closes.
 10. **Notes view operations:** N hotkey opens the view (and ignores N when typing in any input). + New note → inline draft → Save commits. + New folder works and auto-selects the new folder. Folder dropdown on a note moves it. Delete on a non-default folder prompts and reassigns its notes to Random. Default folders (Suspects/Evidence/Timeline/Random) cannot be deleted.
 11. **Level 7 accusation:** (Step 15) Submit Tanya → win path. Submit any other → lose path.
