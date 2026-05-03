@@ -43,6 +43,10 @@ const nextLevelOf = (id) => {
   const idx = LEVELS.findIndex((lvl) => lvl.id === id);
   return idx >= 0 && idx + 1 < LEVELS.length ? LEVELS[idx + 1] : null;
 };
+const prevLevelOf = (id) => {
+  const idx = LEVELS.findIndex((lvl) => lvl.id === id);
+  return idx > 0 ? LEVELS[idx - 1] : null;
+};
 
 const container = document.getElementById('canvas-container');
 if (!container) throw new Error('main.js: #canvas-container not found in DOM');
@@ -136,6 +140,15 @@ if (isDevMode()) {
         return;
       }
       transitionToLevel(next, activeLevel?.outro);
+    },
+    goToPreviousLevel: () => {
+      const prev = prevLevelOf(activeLevelId);
+      if (!prev) {
+        console.warn('[dev] no previous level before', activeLevelId);
+        return;
+      }
+      // No outro card going backward — just the next-title fade.
+      transitionToLevel(prev, null);
     },
   });
 }

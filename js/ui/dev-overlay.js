@@ -23,6 +23,7 @@
  *   openCluePanel(descriptor)          → main.js-owned mount
  *   openQuestionPanel(levelContent)    → main.js-owned mount
  *   advanceToNextLevel?()              → main.js-owned next-level transition (Step 12)
+ *   goToPreviousLevel?()               → main.js-owned previous-level transition
  *
  * The dev overlay does NOT own the clue/question panel instances —
  * main.js does, so existing one-at-a-time semantics keep working. We
@@ -53,6 +54,7 @@ export function mountDevOverlay(parent, ctx = {}) {
     openCluePanel,
     openQuestionPanel,
     advanceToNextLevel,
+    goToPreviousLevel,
   } = ctx;
 
   const root = document.createElement('div');
@@ -150,6 +152,9 @@ export function mountDevOverlay(parent, ctx = {}) {
       </div>
       <div class="dev-overlay__row">
         <button class="dev-overlay__btn--wide" data-action="mark-answered">Mark level answered</button>
+      </div>
+      <div class="dev-overlay__row">
+        <button class="dev-overlay__btn--wide" data-action="back">Go to previous level</button>
       </div>
       <div class="dev-overlay__row">
         <button class="dev-overlay__btn--wide" data-action="advance">Advance to next level</button>
@@ -359,6 +364,14 @@ export function mountDevOverlay(parent, ctx = {}) {
         // Repopulating the clue dropdown / dropping the mesh-name
         // overlay is handled by the advanceToLevel subscriber above.
         advanceToNextLevel();
+        break;
+
+      case 'back':
+        if (typeof goToPreviousLevel !== 'function') {
+          console.warn('[dev] no goToPreviousLevel hook');
+          return;
+        }
+        goToPreviousLevel();
         break;
 
       case 'reset':

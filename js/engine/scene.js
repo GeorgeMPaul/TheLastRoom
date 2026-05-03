@@ -35,7 +35,12 @@ export const TOD = {
   dawn:  { bg:'#1a0d20', fog:0x2a1030, ambient:[0xffb87a,0.55], sun:[0xff8c5a,1.1], sunPos:[6,3,8],   fill:[0x6633aa,0.3], rim:[0xff6633,0.9], exposure:0.95 },
   day:   { bg:'#0a1830', fog:0x0a1830, ambient:[0xfff0d0,0.6],  sun:[0xffeebb,2.0], sunPos:[8,14,6],  fill:[0x8aaeff,0.5], rim:[0xff9966,0.5], exposure:1.1  },
   dusk:  { bg:'#1a0808', fog:0x200808, ambient:[0xff7030,0.5],  sun:[0xff4400,1.0], sunPos:[10,2,4],  fill:[0x330033,0.3], rim:[0xff3300,1.2], exposure:0.85 },
-  night: { bg:'#020408', fog:0x020408, ambient:[0x101830,0.3],  sun:[0x2030ff,0.1], sunPos:[8,14,6],  fill:[0x0a0a2a,0.1], rim:[0x3355ff,0.8], exposure:0.6  }
+  // Indoor dusk: same time-of-day as `dusk` but lit from inside.
+  // Red sky directional dialed way down, warm tungsten ambient lifts
+  // the room to readable, and the point "rim" stands in for the
+  // apartment's practical lamps — it's the dominant light source.
+  'dusk-interior': { bg:'#290e13', fog:0x1a0a08, ambient:[0xffc88a,0.65], sun:[0xff6a3a,0.7], sunPos:[10,2,4], fill:[0x2a1a2a,0.2], rim:[0xffb070,2.2], exposure:1.0 },
+  night: { bg:'#020408', fog:0x020408, ambient:[0x101830,0.3],  sun:[0x2030ff,0.1], sunPos:[8,14,6],  fill:[0x0a0a2a,0.1], rim:[0x3355ff,0.8], exposure:1.0  }
 };
 
 const TOD_ORDER = ['dawn', 'day', 'dusk', 'night'];
