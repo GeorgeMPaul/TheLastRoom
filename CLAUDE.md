@@ -205,9 +205,10 @@ If `schemaVersion` doesn't match on load, show a "we updated the game and reset 
 ## Engine conventions
 
 - **Mesh naming:** interactive meshes follow `Interact_<Object>_<NNN>`, e.g. `Interact_Diary_001`. Non-interactive meshes can be named anything; consistent prefixes (`Wall_`, `Furniture_`, `Decor_`) help.
+- **GLTF puts names on parent groups, not meshes.** When a Blender object exports through GLTF, the human-readable name almost always lands on a parent `Group` node, and the renderable child mesh is either nameless or generically named (`Plane.004`, `Mesh_5`). The picker accounts for this by walking the parent chain of every raycast hit until it finds an interactive name in the level's allowlist. Allowlist names should match the *Blender object name* (the parent Group), not the inner mesh name. The Step-7 "log a warning at level load when a content key has no matching mesh" rule must therefore check every named object in the scene graph (`obj.name`), not just `obj.isMesh && obj.name`.
 - **Units and scale:** Blender set to meters. Apply transforms before export. One Three.js unit = one meter. Eye level ≈ 1.6 m.
 - **Coordinate system:** Three.js is right-handed Y-up. Export GLBs with +Y up.
-- **Camera-and-occlusion as a level-design constraint:** every interactive object must be reachable by raycast from somewhere within the level's allowed camera range. The picker raycasts against *all* meshes and checks whether the closest hit is interactive — if a non-interactive blocks an interactive, the click does nothing. This is the modeler's responsibility; QA it by clicking every interactive in dev mode before signing off.
+- **Camera-and-occlusion as a level-design constraint:** every interactive object must be reachable by raycast from somewhere within the level's allowed camera range. The picker raycasts against *all* meshes recursively, walks the parent chain of the closest hit to find an interactive ancestor, and discards the click if the closest hit's parent chain has no interactive name — meaning a non-interactive mesh in front of an interactive one will block the click. This is the modeler's responsibility; QA it by clicking every interactive in dev mode before signing off.
 - **Disposal is not optional.** Three.js doesn't garbage-collect GPU resources. `loader.disposeLevel()` walks the scene graph and disposes geometries, materials, and textures. Skip this on level transitions and mobile browsers will crash within a few transitions.
 - **Audio unlock on first user click.** Browsers block playback until a user gesture. The boot sequence shows a "Click to begin" gate that doubles as the audio unlock.
 - **Asset paths are always relative from the repo root** (`assets/models/level-01.glb`), never absolute. Always referenced through level content files, never hardcoded in engine or UI code.
@@ -226,10 +227,12 @@ Visual styling is being deferred — modules are structured first with semantic 
 
 Build each panel as a static prototype in `prototypes/` first, then wire it in.
 
+**Before building any UI component, read `prompt.md`.** It is the authoritative module contract for UI files: stack rules (vanilla HTML+CSS+ESM, zero npm/Tailwind/JSX), the `mount(container, props) → { unmount }` signature, scoped `<style>` injection, picker-freeze pattern via `setInputBlocked` (the *one* engine import UI is allowed), z-index discipline, and per-component data-flow expectations. `js/ui/dev-overlay.js` is the reference implementation — match its shape.
+
 ## Dev mode
 
 Activated by `?dev=1` in the URL. Enables a level-skip menu, reveal-all-clues, mesh-name overlay, state-reset, FPS counter, recent-state-mutations console. Built early (Step 2 of the implementation plan) because it pays for itself in QA time. Live at `js/ui/dev-overlay.js`.
 
 ## Build sequence
 
-See `docs/plan/implementation-plan.md`. Step 0 (reorganize repo) and Step 1 (bootstrap empty canvas) are complete. Don't reorder steps — each is designed to leave the game runnable, and earlier steps unblock later ones.
+See `docs/plan/implementation-plan.md`. Steps 0–5 are complete: repo reorganized, canvas bootstrapped, dev overlay (`?dev=1`), GLB loader + limited-orbit camera rig, picker with hover emissive + click→action, and the `game/state.js` store with localStorage persistence. The picker currently uses a hardcoded allowlist of 5 mesh names from `level-01.glb`; Step 7 replaces it with a content-driven map. Don't reorder steps — each is designed to leave the game runnable, and earlier steps unblock later ones.
