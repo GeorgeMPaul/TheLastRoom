@@ -1,0 +1,8 @@
+# Editor / tooling sessions
+.claude/
+.superpowers/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
