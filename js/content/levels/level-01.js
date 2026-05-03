@@ -63,10 +63,9 @@ export default {
       label: 'Vintage Marshall speaker',
       reveal: {
         type: 'text-with-image',
-        title: 'A gift from K — don\'t let him take it back',
+        title: 'An expensive gift',
         body:
-          'A faint sticky note on the back: "a gift from K — don\'t let him take it back." Kabir gave her this. ' +
-          'It\'s her most expensive possession. The fact that it\'s labeled suggests she was prepared for him to ask for it.',
+          'It\'s her most expensive possession.',
         image: null,
       },
       clueId: 'clue-speaker-sticky',

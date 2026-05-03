@@ -24,10 +24,10 @@
  *   mesh) and `requiredClues` now uses the laptop's unsent Veer email
  *   as its second gating clue alongside the cup residue.
  *
- *   Sibling fan-out (Tea/Saucer.002 -> Saucer, etc.) is not authored
- *   yet — the picker only resolves the canonical mesh names listed
- *   below. If testers click a sibling and get nothing, fan it to the
- *   matching clue in a follow-up.
+ *   Sibling fan-out: Saucer.002 → visitor-cup clue (Tea.001) is now
+ *   authored. handbag / Handbag.001 → Briq-tote clue (Handbag) is not
+ *   yet authored — fan those in if testers click the lowercase or .001
+ *   variant and get nothing.
  */
 
 export default {
@@ -48,12 +48,12 @@ export default {
     },
   },
 
-  // Story-bible TOD for this scene is "Night. Warm indoor light." The
-  // 'night' preset is cold-blue moonlight, which fights the warm-lamp
-  // mood; 'dusk' (warm orange directional, low ambient) reads closer
-  // to a lamp-lit late evening. Real per-level lighting tuning lands
-  // when the scene gets its dedicated pass.
-  lighting: { tod: 'dusk' },
+  // Story-bible TOD: "Night. Warm indoor light." `dusk-interior` is a
+  // dusk preset tuned for an interior — the red sky directional is
+  // dialed down so it doesn't paint the room red, warm tungsten
+  // ambient lifts everything to readable, and the point rim stands in
+  // for the apartment's practical lamps as the dominant light source.
+  lighting: { tod: 'day' },
 
   audio: {
     // Drop in once authored: assets/audio/ambient/saturday-night.mp3
@@ -90,6 +90,9 @@ export default {
     // from a clean cup. The Cup.001 mesh was removed in the May-2026
     // rebake; we route this clue to Tea.001 (the visible tea in the
     // visitor's spot) as the closest remaining pickable.
+    // Saucer.002 fans here too — it sits directly under Tea.001 and
+    // occludes the raycaster's first hit, so without this fan-out the
+    // picker returns null before it ever resolves Tea.001.
     'Tea.001': {
       label: 'Visitor\'s tea',
       reveal: {
