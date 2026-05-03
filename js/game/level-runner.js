@@ -32,14 +32,37 @@
  * @param opts.applyTOD      from engine/scene.js
  * @param opts.loadLevel     from engine/loader.js
  * @param opts.setupModel    from engine/loader.js
+ * @param opts.playAmbient?  from engine/audio.js — optional so old call sites still compile
+ * @param opts.previousModelRoot?  from a prior loadLevelById result; disposed before
+ *                                 the new GLB lands so GPU memory doesn't leak.
+ * @param opts.disposeLevel?       from engine/loader.js (paired with previousModelRoot)
  */
 export function loadLevelById(opts) {
-  const { levelContent, scene, picker, applyTOD, loadLevel, setupModel } = opts;
+  const {
+    levelContent, scene, picker, applyTOD, loadLevel, setupModel,
+    playAmbient, previousModelRoot, disposeLevel,
+  } = opts;
   if (!levelContent) return Promise.reject(new Error('level-runner: levelContent is required'));
+
+  // ─── Dispose previous level (Step 12) ────────────────────────────
+  // Required: Three.js does not garbage-collect GPU resources, and a
+  // few uncleaned level swaps will crash mobile browsers.
+  if (previousModelRoot && typeof disposeLevel === 'function') {
+    disposeLevel(scene, previousModelRoot);
+  }
 
   // ─── Lighting (camera state seeded by main.js for now) ───────────
   const todName = levelContent.lighting?.tod ?? 'day';
   applyTOD(todName);
+
+  // ─── Ambient audio (Step 11) ─────────────────────────────────────
+  // Null URL stops the previous track; the audio module handles
+  // fade-out/fade-in. Pre-unlock, the call is queued.
+  if (typeof playAmbient === 'function') {
+    const ambient = levelContent.audio?.ambient ?? null;
+    const volume  = levelContent.audio?.ambientVolume ?? 0.5;
+    playAmbient(ambient, { volume });
+  }
 
   // ─── Picker map (driven entirely by content) ─────────────────────
   // Translate { meshName: { label, clueId, reveal } } into the shape

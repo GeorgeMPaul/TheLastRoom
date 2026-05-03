@@ -15,21 +15,34 @@
  *   8 — clue panel embeds add-to-notes form
  *   9 — notes view (folders, search, edit, move, delete) via HUD
  *  10 — question panel triggered by HUD button gated on requiredClues
+ *  11 — audio engine + click-to-begin gate (unlocks audio + boots level)
+ *  12 — level transition + Level 2 stub (dispose + reload through fade)
  */
 
 import * as THREE from 'three';
 import { initScene, applyTOD, renderer, scene, camera } from './engine/scene.js';
-import { loadLevel, setupModel } from './engine/loader.js';
+import { loadLevel, setupModel, disposeLevel } from './engine/loader.js';
 import { createCameraRig } from './engine/camera-rig.js';
 import { createPicker } from './engine/picker.js';
+import { initAudio, unlock as unlockAudio, playAmbient } from './engine/audio.js';
 import { isDevMode, mountDevOverlay } from './ui/dev-overlay.js';
 import { mountCluePanel } from './ui/clue-panel.js';
 import { mountHud } from './ui/hud.js';
 import { mountQuestionPanel } from './ui/question-panel.js';
+import { mountLevelTransition } from './ui/level-transition.js';
 import { loadLevelById } from './game/level-runner.js';
 import * as gameState from './game/state.js';
 
 import level01 from './content/levels/level-01.js';
+import level02 from './content/levels/level-02.js';
+
+// Static ordered roster of levels available so far. content/index.js
+// will own this once Step 14 brings the rest online.
+const LEVELS = [level01, level02];
+const nextLevelOf = (id) => {
+  const idx = LEVELS.findIndex((lvl) => lvl.id === id);
+  return idx >= 0 && idx + 1 < LEVELS.length ? LEVELS[idx + 1] : null;
+};
 
 const container = document.getElementById('canvas-container');
 if (!container) throw new Error('main.js: #canvas-container not found in DOM');
@@ -38,6 +51,7 @@ const uiRoot = document.getElementById('ui-root');
 if (!uiRoot) throw new Error('main.js: #ui-root not found in DOM');
 
 initScene(container);
+initAudio();
 
 // Camera state still seeded here for now — Step 14 pushes this into
 // the level-runner and reads it from level content.camera.
@@ -51,8 +65,12 @@ cameraRig.setTarget(new THREE.Vector3(0, 1, 0));
 // AND open the clue panel — opening from the click rather than from a
 // state subscriber means re-clicking an already-discovered object
 // reopens the panel.
-let activeLevelId = null;
+let activeLevelId  = null;
+let activeLevel    = null;
+let activeModelRoot = null;
 let activeCluePanel = null;
+let activeHud      = null;
+let activeQuestionPanel = null;
 
 function openCluePanel(descriptor) {
   if (activeCluePanel) {
@@ -68,7 +86,6 @@ function openCluePanel(descriptor) {
   });
 }
 
-let activeQuestionPanel = null;
 function openQuestionPanel(levelContent) {
   if (activeQuestionPanel) {
     activeQuestionPanel.unmount();
@@ -78,10 +95,7 @@ function openQuestionPanel(levelContent) {
     parent: uiRoot,
     levelContent,
     picker,
-    onCorrect: () => {
-      // Step 12 will mount level-transition + load the next level here.
-      console.log(`[main] correct answer for ${levelContent.id} — advanceToLevel placeholder`);
-    },
+    onCorrect: () => onLevelAnswered(levelContent),
     onClose: () => { activeQuestionPanel = null; },
   });
 }
@@ -106,48 +120,153 @@ gameState.subscribe((state, action) => {
 
 // ─── Dev overlay (mounted after picker so the ctx can capture it) ──
 // Pass closures (not bare values) so the overlay always reads the
-// current activeModelRoot rather than the null we have at boot.
-let activeModelRoot = null;
+// CURRENT active level/model rather than the level-01 we have at boot.
 if (isDevMode()) {
   mountDevOverlay(uiRoot, {
-    getActiveLevel: () => level01,
+    getActiveLevel: () => activeLevel,
     getModelRoot:   () => activeModelRoot,
     picker,
     uiRoot,
     openCluePanel,
     openQuestionPanel,
+    advanceToNextLevel: () => {
+      const next = nextLevelOf(activeLevelId);
+      if (!next) {
+        console.warn('[dev] no next level after', activeLevelId);
+        return;
+      }
+      transitionToLevel(next, activeLevel?.outro);
+    },
   });
 }
 
-// ─── Load Level 1 via the level-runner ──────────────────────────────
-activeLevelId = level01.id;
-
-let activeHud = null;
-
-loadLevelById({
-  levelContent: level01,
-  scene,
-  picker,
-  applyTOD,
-  loadLevel,
-  setupModel,
-})
-  .then(({ modelRoot }) => {
-    console.log(`[main] level "${level01.id}" loaded; root has ${modelRoot.children.length} children`);
+// ─── Level loading ──────────────────────────────────────────────────
+// Wraps loadLevelById, updates the bookkeeping main.js needs (active
+// level/model, HUD remount, picker root). Returns a promise so the
+// transition can await the GLB load before fading out.
+function loadAndMountLevel(level, { previousModelRoot = null } = {}) {
+  return loadLevelById({
+    levelContent: level,
+    scene,
+    picker,
+    applyTOD,
+    loadLevel,
+    setupModel,
+    disposeLevel,
+    playAmbient,
+    previousModelRoot,
+  }).then(({ modelRoot }) => {
+    console.log(`[main] level "${level.id}" loaded; root has ${modelRoot.children.length} children`);
+    activeLevelId   = level.id;
+    activeLevel     = level;
     activeModelRoot = modelRoot;
+    gameState.advanceToLevel(level.id);
 
-    // Mount the HUD once the level is ready. The HUD owns the notes
-    // button + answer button and is the only thing that triggers the
-    // question panel.
     if (activeHud) activeHud.unmount();
     activeHud = mountHud({
       parent: uiRoot,
-      levelContent: level01,
+      levelContent: level,
       picker,
-      onAnswer: () => openQuestionPanel(level01),
+      onAnswer: () => openQuestionPanel(level),
     });
-  })
-  .catch((err) => console.error('[main] failed to load level-01:', err));
+
+    return modelRoot;
+  });
+}
+
+// Called by question-panel's onCorrect (and the dev overlay).
+function onLevelAnswered(currentLevel) {
+  const next = nextLevelOf(currentLevel.id);
+  if (!next) {
+    console.log(`[main] level ${currentLevel.id} answered; no next level wired yet`);
+    return;
+  }
+  transitionToLevel(next, currentLevel.outro);
+}
+
+function transitionToLevel(next, outro) {
+  const previousModelRoot = activeModelRoot;
+  // Block clue-panel/notes-view re-opens on the residual model.
+  activeModelRoot = null;
+
+  mountLevelTransition({
+    parent: uiRoot,
+    picker,
+    outro: outro ?? {},
+    nextTitle: next.title,
+    onMidpoint: () => loadAndMountLevel(next, { previousModelRoot }),
+  });
+}
+
+// ─── Boot gate: "Click to begin" ────────────────────────────────────
+// Doubles as the audio-unlock gesture browsers require. The very first
+// click anywhere in the gate calls unlockAudio() (which flushes the
+// queued ambient track from the first level-runner pass) and kicks off
+// loading Level 1.
+function mountBootGate() {
+  const gate = document.createElement('div');
+  gate.className = 'boot-gate';
+  gate.innerHTML = `
+    <style>
+      .boot-gate {
+        position: fixed; inset: 0;
+        z-index: 50;
+        pointer-events: auto;
+        background: #05070f;
+        display: flex; align-items: center; justify-content: center;
+        font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+        color: #e6ecf6;
+        cursor: pointer;
+      }
+      .boot-gate__card {
+        text-align: center;
+        max-width: 480px;
+        padding: 0 32px;
+      }
+      .boot-gate__title {
+        font-size: 32px; font-weight: 600;
+        color: #f0f4ff;
+        letter-spacing: 0.06em;
+        margin-bottom: 18px;
+      }
+      .boot-gate__body {
+        color: #b6c4e2;
+        font-size: 15px;
+        margin-bottom: 28px;
+      }
+      .boot-gate__cta {
+        font: inherit;
+        background: #2e5cff; color: #f4f7ff;
+        border: 1px solid #4c75ff; border-radius: 4px;
+        padding: 12px 28px;
+        font-size: 14px;
+        letter-spacing: 0.08em; text-transform: uppercase;
+        cursor: pointer;
+      }
+      .boot-gate__cta:hover { background: #3d6cff; }
+    </style>
+    <div class="boot-gate__card">
+      <div class="boot-gate__title">The Last Room</div>
+      <div class="boot-gate__body">
+        Seven moments, one room. Click an object to look closer. Save what matters to your notes.
+      </div>
+      <button class="boot-gate__cta" data-action="begin">Click to begin</button>
+    </div>
+  `;
+  uiRoot.appendChild(gate);
+
+  function dismiss() {
+    unlockAudio();
+    gate.remove();
+    // Boot Level 1.
+    loadAndMountLevel(level01)
+      .catch((err) => console.error('[main] failed to load level-01:', err));
+  }
+
+  gate.addEventListener('click', dismiss, { once: true });
+}
+
+mountBootGate();
 
 // ─── Render loop ────────────────────────────────────────────────────
 function loop() {

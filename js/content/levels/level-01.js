@@ -42,7 +42,7 @@ export default {
   lighting: { tod: 'day' },   // overcast morning — closest preset is 'day'
 
   audio: {
-    ambient: null,            // 'assets/audio/ambient/crime-scene-silence.mp3' once authored
+    ambient: 'assets/audio/ambient/crime-scene-silence.mp3',
     ambientVolume: 0.3,
     music: null,
   },

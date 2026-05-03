@@ -247,20 +247,21 @@ Activated by `?dev=1` in the URL. Live at `js/ui/dev-overlay.js`. The purpose is
 The overlay is grouped into three sections:
 
 - **Panels** — pick any clue from the dropdown to open its clue panel; "Open question panel" bypasses the `requiredClues` gate; "Open notes view" is a shortcut for the HUD's notes button.
-- **State** — "Reveal all clues" dispatches `discoverClue` for every entry in the active level's interactives map (which also unlocks the Answer button); "Mark level answered" toggles the level into `answeredLevels`; "Reset all state + reload" wipes localStorage.
+- **State** — "Reveal all clues" dispatches `discoverClue` for every entry in the active level's interactives map (which also unlocks the Answer button); "Mark level answered" toggles the level into `answeredLevels`; "Advance to next level" runs the same fade + dispose + load that the question panel triggers on a correct answer (uses the *current* level's `outro` for the title card); "Reset all state + reload" wipes localStorage.
 - **Inspect** — live FPS, clue counter, note counter; "Toggle mesh-name overlay" shows every interactive name in the active level alongside whether the GLB actually contains a node with that name (✓ = CURRENT, ✗ = PENDING); "console.log(state)" dumps the live store.
 
 When you build a new UI panel or content surface, **add a one-click trigger to the dev overlay in the same change**. That is the contract: dev mode is the test harness for everything you author. The overlay receives a `ctx` from `main.js` carrying `getActiveLevel` / `getModelRoot` / `picker` / `uiRoot` plus the same `openCluePanel` / `openQuestionPanel` instance-managers main.js owns — extend `ctx` rather than letting the overlay reach into module internals.
 
 ## Build sequence
 
-See `docs/plan/implementation-plan.md` for the full per-step ledger and acceptance criteria. Steps 0–10 are done; Steps 11 (audio) and 12 (level transition + Level 2 stub) are next.
+See `docs/plan/implementation-plan.md` for the full per-step ledger and acceptance criteria. Steps 0–12 are done; Step 13 (Level 1 polish) is next.
 
 **Standing caveats** that future-you will trip over if not remembered:
 
 - `level-01.js` `requiredClues` are temporarily `['clue-rug-impressions', 'clue-guitar-capo']` (both CURRENT) instead of the story-bible `['clue-cup-residue', 'clue-rug-impressions']`. The cup mesh isn't in the GLB yet, and gating on a PENDING clue makes the level unanswerable. There's a marker comment in the file — flip back when the modeler ships `Interact_Cup_001`.
-- The question panel's `onCorrect` in `main.js` is a placeholder `console.log`. Step 12 replaces it with `level-transition.js` + a real `loadLevelById(level02, …)` call.
 - Camera initial position + constraints are seeded by `main.js` with hardcoded values, not read from `level.camera`. Move into `level-runner.js` when Step 14 brings real per-level GLBs.
-- Levels 2–5 GLBs are byte-identical copies of Level 1 (placeholder). Real per-level authoring is Step 14.
+- Levels 2–5 GLBs are byte-identical copies of Level 1 (placeholder). Real per-level authoring is Step 14. Level 2's content file is a minimal stub — it gates the MCQ on a single clue (`clue-l2-laptop`) so the transition is QA-able end-to-end.
+- All `level.audio.ambient` URLs are currently `null`. The audio system handles null fine (no playback, no errors), but every level will be silent until the audio drops land in `assets/audio/ambient/`. Track names referenced in level files: `crime-scene-silence.mp3` (L1), `saturday-night.mp3` (L2).
+- Loader cache is single-use: `loadLevel(url)` caches the gltf, `disposeLevel()` evicts it. This means revisiting a level re-downloads + re-parses the GLB. Fine for the jam; if preloading becomes important, switch to `SkeletonUtils.clone(gltf.scene)` per revisit and drop the eviction.
 
 **Don't reorder steps** — each is designed to leave the game runnable, and earlier steps unblock later ones.

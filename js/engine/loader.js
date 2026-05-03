@@ -17,11 +17,13 @@
  *    geometries/materials/textures and crash mobile within a few
  *    transitions.
  *  - The cache holds the raw gltf object. setupModel mutates the
- *    gltf.scene transform, so we clone-by-cache-miss only — once a
- *    URL is loaded, re-loading it returns the same gltf and re-using
- *    setupModel on it would double-transform. For Step 3 we load
- *    each level exactly once, so this is fine; if we ever revisit a
- *    level without a fresh load, we'll need to clone gltf.scene.
+ *    gltf.scene transform AND disposeLevel frees its GPU resources,
+ *    so a cached gltf is single-use. disposeLevel removes the URL
+ *    from the cache so the next load() returns a fresh gltf — that's
+ *    enough for Steps 11-12 where each level loads at most a few
+ *    times before reset. If preloading or true caching becomes
+ *    desirable later, switch to SkeletonUtils.clone(gltf.scene) per
+ *    revisit and drop the cache eviction.
  */
 
 import * as THREE from 'three';
@@ -38,6 +40,9 @@ export function loadLevel(url, onProgress) {
     loader.load(
       url,
       (gltf) => {
+        // Stash the source URL on the scene so disposeLevel can
+        // evict the cache entry without the caller passing the URL.
+        if (gltf?.scene) gltf.scene.userData.__sourceUrl = url;
         cache.set(url, gltf);
         resolve(gltf);
       },
@@ -106,6 +111,12 @@ export function disposeLevel(scene, modelRoot) {
       }
     }
   });
+
+  // Evict the cache entry: a disposed gltf has freed its GPU
+  // resources and its scene transform is already mutated, so the
+  // next loadLevel(sameUrl) must do a real fresh load.
+  const url = modelRoot.userData?.__sourceUrl;
+  if (url) cache.delete(url);
 }
 
 export function clearCache() {

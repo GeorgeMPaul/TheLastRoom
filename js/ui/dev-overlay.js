@@ -22,6 +22,7 @@
  *   uiRoot            → where spawned panels mount
  *   openCluePanel(descriptor)          → main.js-owned mount
  *   openQuestionPanel(levelContent)    → main.js-owned mount
+ *   advanceToNextLevel?()              → main.js-owned next-level transition (Step 12)
  *
  * The dev overlay does NOT own the clue/question panel instances —
  * main.js does, so existing one-at-a-time semantics keep working. We
@@ -51,6 +52,7 @@ export function mountDevOverlay(parent, ctx = {}) {
     uiRoot         = parent,
     openCluePanel,
     openQuestionPanel,
+    advanceToNextLevel,
   } = ctx;
 
   const root = document.createElement('div');
@@ -150,6 +152,9 @@ export function mountDevOverlay(parent, ctx = {}) {
         <button class="dev-overlay__btn--wide" data-action="mark-answered">Mark level answered</button>
       </div>
       <div class="dev-overlay__row">
+        <button class="dev-overlay__btn--wide" data-action="advance">Advance to next level</button>
+      </div>
+      <div class="dev-overlay__row">
         <button class="dev-overlay__btn--wide dev-overlay__danger" data-action="reset">Reset all state + reload</button>
       </div>
 
@@ -229,7 +234,18 @@ export function mountDevOverlay(parent, ctx = {}) {
   }
   refreshCounters();
 
-  const unsubscribe = gameState.subscribe(() => refreshCounters());
+  const unsubscribe = gameState.subscribe((_state, action) => {
+    refreshCounters();
+    // Level swap → repopulate the clue dropdown so the dev shortcut
+    // points at the new level's interactives. Stale mesh-name overlay
+    // gets dropped too.
+    if (action?.type === 'advanceToLevel') {
+      // Defer one tick so main.js has time to update activeLevel
+      // (level-runner resolves before main.js writes activeLevel = ...).
+      setTimeout(() => populateClueSelect(), 0);
+      if (meshNameOverlay) { meshNameOverlay.remove(); meshNameOverlay = null; }
+    }
+  });
 
   // The overlay mounts before the level loads. Poll briefly for the
   // first level to populate the clue dropdown — much simpler than
@@ -334,6 +350,16 @@ export function mountDevOverlay(parent, ctx = {}) {
         gameState.answerQuestion(level.id, true);
         break;
       }
+
+      case 'advance':
+        if (typeof advanceToNextLevel !== 'function') {
+          console.warn('[dev] no advanceToNextLevel hook');
+          return;
+        }
+        // Repopulating the clue dropdown / dropping the mesh-name
+        // overlay is handled by the advanceToLevel subscriber above.
+        advanceToNextLevel();
+        break;
 
       case 'reset':
         if (!window.confirm('Wipe all save state and reload?')) return;
