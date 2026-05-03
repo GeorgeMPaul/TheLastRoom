@@ -82,10 +82,26 @@ export function createPicker(camera, domElement, scene, onPick) {
   };
 
   // ─── Raycast helper ───────────────────────────────────────────────
-  // Returns the first hit whose mesh.name is a key in interactiveMap,
-  // or null. We intersect the entire raycastRoot (recursive) so
-  // non-interactive meshes that occlude an interactive correctly block
-  // the click — that's the "camera-and-occlusion" rule from CLAUDE.md.
+  // Returns { mesh, name } for the first hit whose mesh — OR any
+  // ancestor up to raycastRoot — has a name in interactiveMap. GLTF
+  // loaders frequently put the human-readable name on a parent Group
+  // and leave the renderable mesh nameless or generically named, so
+  // walking the parent chain is required.
+  //
+  // We intersect the entire raycastRoot (recursive) so non-interactive
+  // meshes that occlude an interactive correctly block the click —
+  // that's the "camera-and-occlusion" rule from CLAUDE.md. Once a hit
+  // is non-interactive (after walking ancestors), we stop walking the
+  // hit list.
+  const resolveInteractive = (obj) => {
+    let cur = obj;
+    while (cur && cur !== raycastRoot) {
+      if (cur.name && interactiveMap[cur.name]) return cur.name;
+      cur = cur.parent;
+    }
+    return null;
+  };
+
   const pickInteractive = (clientX, clientY) => {
     const rect = domElement.getBoundingClientRect();
     ndc.x =  ((clientX - rect.left) / rect.width)  * 2 - 1;
@@ -94,9 +110,8 @@ export function createPicker(camera, domElement, scene, onPick) {
 
     const hits = raycaster.intersectObject(raycastRoot, true);
     for (const hit of hits) {
-      if (hit.object && hit.object.name && interactiveMap[hit.object.name]) {
-        return hit.object;
-      }
+      const name = resolveInteractive(hit.object);
+      if (name) return { mesh: hit.object, name };
       // First non-interactive hit occludes — stop walking.
       return null;
     }
@@ -112,8 +127,8 @@ export function createPicker(camera, domElement, scene, onPick) {
 
   const onPointerMove = (e) => {
     if (inputBlocked) { setHover(null); return; }
-    const mesh = pickInteractive(e.clientX, e.clientY);
-    setHover(mesh);
+    const hit = pickInteractive(e.clientX, e.clientY);
+    setHover(hit ? hit.mesh : null);
   };
 
   const onPointerUp = (e) => {
@@ -123,11 +138,11 @@ export function createPicker(camera, domElement, scene, onPick) {
     const dy = e.clientY - downPos.y;
     if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD_PX) return;
 
-    const mesh = pickInteractive(e.clientX, e.clientY);
-    if (!mesh) return;
-    const descriptor = interactiveMap[mesh.name];
+    const hit = pickInteractive(e.clientX, e.clientY);
+    if (!hit) return;
+    const descriptor = interactiveMap[hit.name];
     if (descriptor && typeof onPick === 'function') {
-      onPick(mesh.name, descriptor);
+      onPick(hit.name, descriptor);
     }
   };
 

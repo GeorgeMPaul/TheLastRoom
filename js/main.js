@@ -70,12 +70,14 @@ loadLevel('assets/models/level-01.glb')
     picker.setRoot(modelRoot);
     picker.setInteractiveMap(LEVEL_01_INTERACTIVES);
 
-    // Warn for any hardcoded mesh names that don't actually exist in
-    // the loaded GLB. This is the Step 7 "log a warning at level load"
-    // rule applied early — it'll catch typos against the modeler's
-    // working names while we wait for the real content schema.
+    // Warn for any hardcoded interactive name not present anywhere in
+    // the loaded scene graph. We check every named object — meshes,
+    // groups, nodes — because GLTF often parks the human-readable name
+    // on a parent Group and leaves the renderable mesh nameless. The
+    // picker resolves a hit by walking up to the first interactive
+    // ancestor, so the allowlist matches the same set we check here.
     const present = new Set();
-    modelRoot.traverse((obj) => { if (obj.isMesh && obj.name) present.add(obj.name); });
+    modelRoot.traverse((obj) => { if (obj.name) present.add(obj.name); });
     for (const name of Object.keys(LEVEL_01_INTERACTIVES)) {
       if (!present.has(name)) {
         console.warn(`[picker] interactive "${name}" not found in level-01.glb`);
