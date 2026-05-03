@@ -28,13 +28,11 @@
 
   canvas { display: block; width: 100% !important; height: 100% !important; }
 
-  /* ── HUD ─────────────────────────────────── */
   #hud {
     position: fixed; inset: 0; pointer-events: none;
     font-family: 'Space Mono', monospace;
   }
 
-  /* Top-left title */
   #title-block {
     position: absolute; top: 28px; left: 32px;
     pointer-events: none;
@@ -50,7 +48,6 @@
     letter-spacing: 0.18em; text-transform: uppercase; margin-top: 3px;
   }
 
-  /* Selected object badge */
   #selected-badge {
     position: absolute; top: 28px; left: 50%;
     transform: translateX(-50%);
@@ -66,7 +63,6 @@
   }
   #selected-badge.visible { opacity: 1; }
 
-  /* Right controls panel */
   #controls-panel {
     position: absolute; right: 28px; top: 50%;
     transform: translateY(-50%);
@@ -105,7 +101,6 @@
     margin: 4px 0;
   }
 
-  /* Time-of-day panel */
   #tod-panel {
     position: absolute; bottom: 32px; left: 50%;
     transform: translateX(-50%);
@@ -125,9 +120,7 @@
     text-transform: uppercase; color: rgba(255,255,255,0.45);
   }
 
-  #tod-buttons {
-    display: flex; gap: 8px;
-  }
+  #tod-buttons { display: flex; gap: 8px; }
 
   .tod-btn {
     padding: 7px 14px;
@@ -142,10 +135,7 @@
     transition: all 0.2s;
     display: flex; align-items: center; gap: 6px;
   }
-  .tod-btn:hover {
-    border-color: rgba(255,255,255,0.35);
-    color: #fff;
-  }
+  .tod-btn:hover { border-color: rgba(255,255,255,0.35); color: #fff; }
   .tod-btn.active {
     background: rgba(245,200,66,0.14);
     border-color: var(--accent);
@@ -169,7 +159,6 @@
     box-shadow: 0 0 8px rgba(245,200,66,0.6);
   }
 
-  /* Bottom-left hint */
   #hint {
     position: absolute; bottom: 32px; left: 32px;
     font-size: 10px; color: rgba(255,255,255,0.25);
@@ -177,7 +166,6 @@
     pointer-events: none;
   }
 
-  /* Loading overlay */
   #loading {
     position: fixed; inset: 0;
     background: #0a0e1a;
@@ -208,7 +196,6 @@
     font-family: 'Space Mono', monospace;
   }
 
-  /* Drop zone */
   #drop-hint {
     position: fixed; bottom: 110px; left: 50%;
     transform: translateX(-50%);
@@ -275,22 +262,20 @@
 
 <div id="drop-hint">Drop a .GLB file to load your room model</div>
 
-<!-- Three.js via CDN -->
+<!-- ✅ FIX: Use a proper importmap that includes GLTFLoader as an ES module -->
 <script type="importmap">
 {
   "imports": {
-    "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js"
+    "three": "https://unpkg.com/three@0.158.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.158.0/examples/jsm/"
   }
 }
 </script>
 
 <script type="module">
+// ✅ FIX: Import GLTFLoader directly as an ES module — no more script-tag hack
 import * as THREE from 'three';
-
-// Make THREE globally available for dynamically-loaded scripts
-window.THREE = THREE;
-
-/* ── Helpers not on CDN: inline minimal OrbitControls + GLTFLoader stubs ── */
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 // ── Minimal OrbitControls ──────────────────────────────────────────────────
 class OrbitControls {
@@ -315,7 +300,6 @@ class OrbitControls {
     this._rotateDelta = new THREE.Vector2();
     this._isDragging = false;
 
-    // compute initial spherical from camera position
     const offset = camera.position.clone().sub(this.target);
     this._spherical.setFromVector3(offset);
 
@@ -383,7 +367,6 @@ class OrbitControls {
 
   update() {
     if (this.autoRotate) this._sphericalDelta.theta -= 0.008 * (this.autoRotateSpeed / 10);
-
     this._spherical.theta += this._sphericalDelta.theta;
     this._spherical.phi   += this._sphericalDelta.phi;
     this._spherical.phi    = Math.max(this.minPolarAngle, Math.min(this.maxPolarAngle, this._spherical.phi));
@@ -409,21 +392,6 @@ class OrbitControls {
     this.domElement.removeEventListener('pointerup',   this._onPointerUp);
     this.domElement.removeEventListener('wheel',       this._onWheel);
   }
-}
-
-// ── GLTF Loader (full fetch-based) ────────────────────────────────────────
-async function loadGLB(url, onProgress) {
-  // Dynamic import approach using a script-tag trick for the CDN version
-  return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/loaders/GLTFLoader.js';
-    script.onload = () => {
-      const loader = new THREE.GLTFLoader();
-      loader.load(url, resolve, onProgress, reject);
-    };
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
 }
 
 // ── Scene Setup ───────────────────────────────────────────────────────────
@@ -452,82 +420,61 @@ controls.target.set(0, 1, 0);
 controls._spherical.setFromVector3(camera.position.clone().sub(controls.target));
 
 // ── Lighting ──────────────────────────────────────────────────────────────
-const ambientLight   = new THREE.AmbientLight(0xffffff, 0.4);
-const sunLight       = new THREE.DirectionalLight(0xfff5e0, 1.8);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+const sunLight     = new THREE.DirectionalLight(0xfff5e0, 1.8);
 sunLight.position.set(8, 14, 6);
 sunLight.castShadow = true;
 sunLight.shadow.mapSize.set(2048, 2048);
 sunLight.shadow.camera.near = 0.1;
-sunLight.shadow.camera.far = 60;
+sunLight.shadow.camera.far  = 60;
 sunLight.shadow.camera.left = sunLight.shadow.camera.bottom = -12;
-sunLight.shadow.camera.right = sunLight.shadow.camera.top = 12;
+sunLight.shadow.camera.right = sunLight.shadow.camera.top  =  12;
 sunLight.shadow.bias = -0.001;
 
-const fillLight  = new THREE.DirectionalLight(0x8aaeff, 0.5);
+const fillLight = new THREE.DirectionalLight(0x8aaeff, 0.5);
 fillLight.position.set(-6, 4, -4);
 
-const rimLight   = new THREE.PointLight(0xff9966, 0.6, 30);
+const rimLight = new THREE.PointLight(0xff9966, 0.6, 30);
 rimLight.position.set(-4, 8, -4);
 
 scene.add(ambientLight, sunLight, fillLight, rimLight);
 
-// ── Ground grid (aesthetic) ───────────────────────────────────────────────
 const gridHelper = new THREE.GridHelper(40, 40, 0x1a2240, 0x111828);
 gridHelper.position.y = -0.02;
 scene.add(gridHelper);
 
 // ── Time-of-Day configs ───────────────────────────────────────────────────
 const TOD = {
-  dawn: {
-    bg: '#1a0d20', fog: 0x2a1030,
-    ambient: [0xffb87a, 0.55], sun: [0xff8c5a, 1.1], sunPos: [6, 3, 8],
-    fill: [0x6633aa, 0.3], rim: [0xff6633, 0.9], exposure: 0.95
-  },
-  day: {
-    bg: '#0a1830', fog: 0x0a1830,
-    ambient: [0xfff0d0, 0.6], sun: [0xffeebb, 2.0], sunPos: [8, 14, 6],
-    fill: [0x8aaeff, 0.5], rim: [0xff9966, 0.5], exposure: 1.1
-  },
-  dusk: {
-    bg: '#1a0808', fog: 0x200808,
-    ambient: [0xff7030, 0.5], sun: [0xff4400, 1.0], sunPos: [10, 2, 4],
-    fill: [0x330033, 0.3], rim: [0xff3300, 1.2], exposure: 0.85
-  },
-  night: {
-    bg: '#020408', fog: 0x020408,
-    ambient: [0x101830, 0.3], sun: [0x2030ff, 0.1], sunPos: [8, 14, 6],
-    fill: [0x0a0a2a, 0.1], rim: [0x3355ff, 0.8], exposure: 0.6
-  }
+  dawn:  { bg:'#1a0d20', fog:0x2a1030, ambient:[0xffb87a,0.55], sun:[0xff8c5a,1.1], sunPos:[6,3,8],   fill:[0x6633aa,0.3], rim:[0xff6633,0.9], exposure:0.95 },
+  day:   { bg:'#0a1830', fog:0x0a1830, ambient:[0xfff0d0,0.6],  sun:[0xffeebb,2.0], sunPos:[8,14,6],  fill:[0x8aaeff,0.5], rim:[0xff9966,0.5], exposure:1.1  },
+  dusk:  { bg:'#1a0808', fog:0x200808, ambient:[0xff7030,0.5],  sun:[0xff4400,1.0], sunPos:[10,2,4],  fill:[0x330033,0.3], rim:[0xff3300,1.2], exposure:0.85 },
+  night: { bg:'#020408', fog:0x020408, ambient:[0x101830,0.3],  sun:[0x2030ff,0.1], sunPos:[8,14,6],  fill:[0x0a0a2a,0.1], rim:[0x3355ff,0.8], exposure:0.6  }
 };
 
 let currentTOD = 'day';
-let targetTOD  = { ...TOD.day };
 
-function applyTOD(name, instant = false) {
+function applyTOD(name) {
   currentTOD = name;
   const t = TOD[name];
   container.style.background = t.bg;
-
-  const lerp = instant ? 1 : 1;
-  ambientLight.color.set(t.ambient[0]);    ambientLight.intensity = t.ambient[1];
-  sunLight.color.set(t.sun[0]);            sunLight.intensity = t.sun[1];
+  ambientLight.color.set(t.ambient[0]); ambientLight.intensity = t.ambient[1];
+  sunLight.color.set(t.sun[0]);         sunLight.intensity = t.sun[1];
   sunLight.position.set(...t.sunPos);
-  fillLight.color.set(t.fill[0]);          fillLight.intensity = t.fill[1];
-  rimLight.color.set(t.rim[0]);            rimLight.intensity = t.rim[1];
+  fillLight.color.set(t.fill[0]);       fillLight.intensity = t.fill[1];
+  rimLight.color.set(t.rim[0]);         rimLight.intensity = t.rim[1];
   renderer.toneMappingExposure = t.exposure;
   scene.fog.color.set(t.fog);
   document.querySelectorAll('.tod-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.tod === name));
 }
 
-// Slider → blend between presets
-const TOD_ORDER = ['dawn', 'day', 'dusk', 'night'];
+const TOD_ORDER = ['dawn','day','dusk','night'];
 function applySlider(v) {
   const idx = v / 100 * (TOD_ORDER.length - 1);
   const lo = Math.floor(idx), hi = Math.min(lo + 1, TOD_ORDER.length - 1);
   const t  = idx - lo;
   const A  = TOD[TOD_ORDER[lo]], B = TOD[TOD_ORDER[hi]];
-  const lerp = (a,b,t) => a + (b-a)*t;
+  const lerp    = (a,b,t) => a + (b-a)*t;
   const lerpCol = (ca,cb,t) => {
     const a = new THREE.Color(ca), b = new THREE.Color(cb);
     return new THREE.Color(lerp(a.r,b.r,t), lerp(a.g,b.g,t), lerp(a.b,b.b,t));
@@ -548,157 +495,159 @@ function applySlider(v) {
   document.querySelectorAll('.tod-btn').forEach(b => b.classList.remove('active'));
 }
 
-applyTOD('day', true);
+applyTOD('day');
 
-// ── Demo room (fallback if no GLB is dropped) ─────────────────────────────
+// ── Demo room ─────────────────────────────────────────────────────────────
 let modelRoot = null;
 let clickableObjects = [];
 
 function buildDemoRoom() {
   setLoadMsg('Building demo room…'); setLoadProgress(60);
-
   const root = new THREE.Group();
-  const mat = (col, rough=0.6, metal=0.1) => new THREE.MeshStandardMaterial({color:col,roughness:rough,metalness:metal});
+  const mat = (col, rough=0.6, metal=0.1) =>
+    new THREE.MeshStandardMaterial({color:col, roughness:rough, metalness:metal});
 
-  // Floor
   const floor = new THREE.Mesh(new THREE.BoxGeometry(6,0.1,6), mat(0x8a7a6a,0.9,0));
-  floor.position.y = -0.05; floor.receiveShadow = true;
-  root.add(floor);
+  floor.position.y = -0.05; floor.receiveShadow = true; root.add(floor);
 
-  // Walls
   const backWall = new THREE.Mesh(new THREE.BoxGeometry(6,4,0.1), mat(0x5a6a8a,0.8,0));
-  backWall.position.set(0,2,-3); backWall.receiveShadow = true;
-  root.add(backWall);
+  backWall.position.set(0,2,-3); backWall.receiveShadow = true; root.add(backWall);
 
   const sideWall = new THREE.Mesh(new THREE.BoxGeometry(0.1,4,6), mat(0x4a5a7a,0.8,0));
-  sideWall.position.set(-3,2,0); sideWall.receiveShadow = true;
-  root.add(sideWall);
+  sideWall.position.set(-3,2,0); sideWall.receiveShadow = true; root.add(sideWall);
 
-  // Bed
   const bedBase = new THREE.Mesh(new THREE.BoxGeometry(2.2,0.4,3.2), mat(0x3a3a4a,0.7,0.1));
-  bedBase.position.set(-0.8,0.2,-0.5); bedBase.castShadow = true; bedBase.name = 'Bed Frame';
-  root.add(bedBase);
+  bedBase.position.set(-0.8,0.2,-0.5); bedBase.castShadow = true; bedBase.name = 'Bed Frame'; root.add(bedBase);
 
   const mattress = new THREE.Mesh(new THREE.BoxGeometry(2.0,0.3,3.0), mat(0x556688,0.5,0));
-  mattress.position.set(-0.8,0.55,-0.5); mattress.castShadow = true; mattress.name = 'Mattress';
-  root.add(mattress);
+  mattress.position.set(-0.8,0.55,-0.5); mattress.castShadow = true; mattress.name = 'Mattress'; root.add(mattress);
 
   const pillow = new THREE.Mesh(new THREE.BoxGeometry(0.8,0.18,0.55), mat(0x889aaa,0.4,0));
-  pillow.position.set(-0.8,0.77,-1.7); pillow.castShadow = true; pillow.name = 'Pillow';
-  root.add(pillow);
+  pillow.position.set(-0.8,0.77,-1.7); pillow.castShadow = true; pillow.name = 'Pillow'; root.add(pillow);
 
-  // Desk
   const desk = new THREE.Mesh(new THREE.BoxGeometry(2.0,0.08,1.0), mat(0x6b4a2a,0.7,0.05));
-  desk.position.set(1.8,0.75,1.0); desk.castShadow = true; desk.receiveShadow = true; desk.name = 'Desk';
-  root.add(desk);
+  desk.position.set(1.8,0.75,1.0); desk.castShadow = true; desk.receiveShadow = true; desk.name = 'Desk'; root.add(desk);
 
-  // Monitor
-  const monBase = new THREE.Mesh(new THREE.BoxGeometry(0.1,0.5,0.1), mat(0x1a1a1a,0.4,0.5));
-  monBase.position.set(1.8,1.0,0.7); monBase.castShadow = true;
-  root.add(monBase);
+  const monBase = new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.5), mat(0x1a1a1a,0.4,0.5));
+  monBase.position.set(1.8,1.0,0.7); root.add(monBase);
+
   const monScreen = new THREE.Mesh(new THREE.BoxGeometry(1.0,0.6,0.06), mat(0x0a0e18,0.2,0.8));
-  monScreen.position.set(1.8,1.4,0.7); monScreen.castShadow = true; monScreen.name = 'Monitor';
-  root.add(monScreen);
+  monScreen.position.set(1.8,1.4,0.7); monScreen.castShadow = true; monScreen.name = 'Monitor'; root.add(monScreen);
 
-  // Chair
   const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(0.6,0.08,0.6), mat(0x2a2a2a,0.5,0.3));
-  chairSeat.position.set(1.8,0.55,1.8); chairSeat.castShadow = true; chairSeat.name = 'Chair Seat';
-  root.add(chairSeat);
-  const chairBack = new THREE.Mesh(new THREE.BoxGeometry(0.6,0.7,0.06), mat(0x2a2a2a,0.5,0.3));
-  chairBack.position.set(1.8,0.95,1.5); chairBack.castShadow = true; chairBack.name = 'Chair Back';
-  root.add(chairBack);
+  chairSeat.position.set(1.8,0.55,1.8); chairSeat.castShadow = true; chairSeat.name = 'Chair Seat'; root.add(chairSeat);
 
-  // Posters on wall
+  const chairBack = new THREE.Mesh(new THREE.BoxGeometry(0.6,0.7,0.06), mat(0x2a2a2a,0.5,0.3));
+  chairBack.position.set(1.8,0.95,1.5); chairBack.castShadow = true; chairBack.name = 'Chair Back'; root.add(chairBack);
+
   const posterColors = [0xe8821a, 0xcc2222, 0x3355aa];
   const posterNames  = ['Dune Poster','Kill Bill Poster','Wanted Poster'];
   posterColors.forEach((c,i) => {
     const p = new THREE.Mesh(new THREE.BoxGeometry(0.6,0.85,0.02), mat(c,0.9,0));
-    p.position.set(-2.1 + i*0.85, 2.5, -2.94); p.name = posterNames[i];
-    root.add(p);
+    p.position.set(-2.1+i*0.85, 2.5, -2.94); p.name = posterNames[i]; root.add(p);
   });
 
-  // Guitar on bed
   const guitar = new THREE.Mesh(new THREE.BoxGeometry(0.25,0.1,1.1), mat(0xcc8833,0.6,0.1));
-  guitar.position.set(-0.2,0.75,0); guitar.rotation.y = 0.3; guitar.castShadow = true; guitar.name = 'Guitar';
-  root.add(guitar);
+  guitar.position.set(-0.2,0.75,0); guitar.rotation.y = 0.3; guitar.castShadow = true; guitar.name = 'Guitar'; root.add(guitar);
 
-  // Lamp
   const lampPost = new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.6), mat(0xaaaaaa,0.3,0.8));
-  lampPost.position.set(-1.5,0.3,2.5);
-  root.add(lampPost);
+  lampPost.position.set(-1.5,0.3,2.5); root.add(lampPost);
+
   const lampShade = new THREE.Mesh(new THREE.ConeGeometry(0.22,0.3,12), mat(0xeeddbb,0.4,0));
-  lampShade.position.set(-1.5,0.75,2.5); lampShade.name = 'Floor Lamp';
-  root.add(lampShade);
-  const lampGlow  = new THREE.PointLight(0xffddaa,0.8,3);
-  lampGlow.position.set(-1.5,0.95,2.5);
-  root.add(lampGlow);
+  lampShade.position.set(-1.5,0.75,2.5); lampShade.name = 'Floor Lamp'; root.add(lampShade);
 
-  // Nightstand
+  const lampGlow = new THREE.PointLight(0xffddaa,0.8,3);
+  lampGlow.position.set(-1.5,0.95,2.5); root.add(lampGlow);
+
   const ns = new THREE.Mesh(new THREE.BoxGeometry(0.6,0.55,0.55), mat(0x5a3a1a,0.7,0.05));
-  ns.position.set(-1.9,0.28,-2.0); ns.castShadow = true; ns.name = 'Nightstand';
-  root.add(ns);
+  ns.position.set(-1.9,0.28,-2.0); ns.castShadow = true; ns.name = 'Nightstand'; root.add(ns);
 
-  // Window
   const winFrame = new THREE.Mesh(new THREE.BoxGeometry(2.0,1.5,0.08), mat(0x8b6a4a,0.7,0.1));
-  winFrame.position.set(0.8,2.5,-2.94); winFrame.name = 'Window';
-  root.add(winFrame);
+  winFrame.position.set(0.8,2.5,-2.94); winFrame.name = 'Window'; root.add(winFrame);
+
   const winGlass = new THREE.Mesh(new THREE.BoxGeometry(1.8,1.3,0.02),
     new THREE.MeshStandardMaterial({color:0x88aacc,opacity:0.25,transparent:true,roughness:0.1,metalness:0.1}));
-  winGlass.position.set(0.8,2.5,-2.92);
-  root.add(winGlass);
+  winGlass.position.set(0.8,2.5,-2.92); root.add(winGlass);
 
-  // Rubik's cube on desk
   const cube = new THREE.Mesh(new THREE.BoxGeometry(0.18,0.18,0.18), mat(0xff3322,0.3,0.1));
-  cube.position.set(2.4,0.88,0.9); cube.name = "Rubik's Cube";
-  root.add(cube);
+  cube.position.set(2.4,0.88,0.9); cube.name = "Rubik's Cube"; root.add(cube);
 
   scene.add(root);
   modelRoot = root;
-
-  // Collect clickable meshes
-  root.traverse(obj => {
-    if (obj.isMesh && obj.name) clickableObjects.push(obj);
-  });
+  root.traverse(obj => { if (obj.isMesh && obj.name) clickableObjects.push(obj); });
 
   setLoadProgress(100);
   setTimeout(() => document.getElementById('loading').classList.add('hidden'), 600);
 }
 
+// ── ✅ FIX: Clean GLB loader using ES module GLTFLoader ───────────────────
+function loadGLBFromURL(url) {
+  return new Promise((resolve, reject) => {
+    const loader = new GLTFLoader();
+    loader.load(
+      url,
+      resolve,
+      (progress) => {
+        if (progress.total > 0) {
+          setLoadProgress(Math.round((progress.loaded / progress.total) * 90));
+        }
+      },
+      reject
+    );
+  });
+}
+
+function setupModel(gltf) {
+  if (modelRoot) scene.remove(modelRoot);
+  clickableObjects = [];
+  modelRoot = gltf.scene;
+
+  const box    = new THREE.Box3().setFromObject(modelRoot);
+  const center = box.getCenter(new THREE.Vector3());
+  const size   = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+  const scale  = 6 / maxDim;
+
+  modelRoot.scale.setScalar(scale);
+  modelRoot.position.sub(center.multiplyScalar(scale));
+  modelRoot.position.y = 0;
+
+  modelRoot.traverse(obj => {
+    if (obj.isMesh) {
+      obj.castShadow    = true;
+      obj.receiveShadow = true;
+      if (obj.name) clickableObjects.push(obj);
+    }
+  });
+
+  scene.add(modelRoot);
+  setLoadProgress(100);
+  setTimeout(() => document.getElementById('loading').classList.add('hidden'), 500);
+}
+
 // ── Click highlight ───────────────────────────────────────────────────────
 const originalMaterials = new Map();
 let selectedObj = null;
-
-const highlightMat = new THREE.MeshStandardMaterial({
-  color: 0xf5c842, emissive: 0xf5c842, emissiveIntensity: 0.35,
-  roughness: 0.3, metalness: 0.2
-});
+const badge = document.getElementById('selected-badge');
 
 function selectObject(obj) {
-  // Deselect previous
   if (selectedObj && originalMaterials.has(selectedObj.uuid)) {
     selectedObj.material = originalMaterials.get(selectedObj.uuid);
   }
-
   if (obj === selectedObj) {
     selectedObj = null;
     badge.textContent = '';
     badge.classList.remove('visible');
     return;
   }
-
   if (obj) {
-    if (!originalMaterials.has(obj.uuid)) {
-      originalMaterials.set(obj.uuid, obj.material);
-    }
-    // Create tinted version
-    const base = originalMaterials.get(obj.uuid);
-    const hl = base.clone();
+    if (!originalMaterials.has(obj.uuid)) originalMaterials.set(obj.uuid, obj.material);
+    const hl = originalMaterials.get(obj.uuid).clone();
     hl.emissive = new THREE.Color(0xf5c842);
     hl.emissiveIntensity = 0.4;
     hl.color = new THREE.Color(0xf5e080);
     obj.material = hl;
     selectedObj = obj;
-
     badge.textContent = `▸ ${obj.name || 'Object'}`;
     badge.classList.add('visible');
   }
@@ -709,45 +658,35 @@ const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 let mouseDownPos = new THREE.Vector2();
 
-renderer.domElement.addEventListener('pointerdown', e => {
-  mouseDownPos.set(e.clientX, e.clientY);
-});
-
+renderer.domElement.addEventListener('pointerdown', e => mouseDownPos.set(e.clientX, e.clientY));
 renderer.domElement.addEventListener('pointerup', e => {
   const dx = e.clientX - mouseDownPos.x, dy = e.clientY - mouseDownPos.y;
-  if (Math.sqrt(dx*dx+dy*dy) > 4) return; // was a drag
-
+  if (Math.sqrt(dx*dx+dy*dy) > 4) return;
   mouse.x =  (e.clientX / W()) * 2 - 1;
   mouse.y = -(e.clientY / H()) * 2 + 1;
   raycaster.setFromCamera(mouse, camera);
-
   const hits = raycaster.intersectObjects(clickableObjects, false);
   selectObject(hits.length ? hits[0].object : null);
 });
 
-// ── Wireframe toggle ──────────────────────────────────────────────────────
+// ── Controls ──────────────────────────────────────────────────────────────
 let wireframe = false;
 document.getElementById('btn-wireframe').addEventListener('click', () => {
   wireframe = !wireframe;
   document.getElementById('btn-wireframe').classList.toggle('active', wireframe);
-  if (modelRoot) {
-    modelRoot.traverse(obj => {
-      if (obj.isMesh && obj.material) obj.material.wireframe = wireframe;
-    });
-  }
+  if (modelRoot) modelRoot.traverse(obj => {
+    if (obj.isMesh && obj.material) obj.material.wireframe = wireframe;
+  });
 });
 
-// ── Auto-rotate toggle ────────────────────────────────────────────────────
 document.getElementById('btn-auto-rotate').addEventListener('click', () => {
   controls.autoRotate = !controls.autoRotate;
   document.getElementById('btn-auto-rotate').classList.toggle('active', controls.autoRotate);
 });
 
-// ── Zoom buttons ──────────────────────────────────────────────────────────
 document.getElementById('btn-zoom-in').addEventListener('click',  () => controls.zoomIn());
 document.getElementById('btn-zoom-out').addEventListener('click', () => controls.zoomOut());
 
-// ── Reset ─────────────────────────────────────────────────────────────────
 const defaultCamPos = new THREE.Vector3(8,8,8);
 const defaultTarget = new THREE.Vector3(0,1,0);
 document.getElementById('btn-reset').addEventListener('click', () => {
@@ -755,7 +694,6 @@ document.getElementById('btn-reset').addEventListener('click', () => {
   selectObject(null);
 });
 
-// ── TOD buttons ───────────────────────────────────────────────────────────
 document.querySelectorAll('.tod-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     applyTOD(btn.dataset.tod);
@@ -768,10 +706,9 @@ document.getElementById('tod-slider').addEventListener('input', e => {
   applySlider(parseInt(e.target.value));
 });
 
-// ── GLB drag-and-drop ─────────────────────────────────────────────────────
+// ── Drag-and-drop ─────────────────────────────────────────────────────────
 const dropHint = document.getElementById('drop-hint');
-
-window.addEventListener('dragover', e => { e.preventDefault(); dropHint.style.opacity = '1'; });
+window.addEventListener('dragover',  e => { e.preventDefault(); dropHint.style.opacity = '1'; });
 window.addEventListener('dragleave', () => { dropHint.style.opacity = '0.6'; });
 window.addEventListener('drop', async e => {
   e.preventDefault();
@@ -780,76 +717,20 @@ window.addEventListener('drop', async e => {
   if (!file || !file.name.endsWith('.glb')) return;
 
   document.getElementById('loading').classList.remove('hidden');
-  document.getElementById('load-bar').style.width = '0%';
+  setLoadProgress(0);
   setLoadMsg('Loading your model…');
 
   const url = URL.createObjectURL(file);
   try {
     const gltf = await loadGLBFromURL(url);
-    if (modelRoot) scene.remove(modelRoot);
-    clickableObjects = [];
-    modelRoot = gltf.scene;
-
-    // Auto-center
-    const box = new THREE.Box3().setFromObject(modelRoot);
-    const center = box.getCenter(new THREE.Vector3());
-    const size   = box.getSize(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z);
-    const scale  = 6 / maxDim;
-    modelRoot.scale.setScalar(scale);
-    modelRoot.position.sub(center.multiplyScalar(scale));
-    modelRoot.position.y = 0;
-
-    modelRoot.traverse(obj => {
-      if (obj.isMesh) {
-        obj.castShadow    = true;
-        obj.receiveShadow = true;
-        if (obj.name) clickableObjects.push(obj);
-      }
-    });
-
-    scene.add(modelRoot);
-    setLoadProgress(100);
-    setTimeout(() => document.getElementById('loading').classList.add('hidden'), 500);
+    setupModel(gltf);
   } catch(err) {
-    setLoadMsg('Error loading model');
-    console.error(err);
+    setLoadMsg('Error loading model — check console');
+    console.error('GLB load error:', err);
+  } finally {
+    URL.revokeObjectURL(url);
   }
 });
-
-async function loadGLBFromURL(url) {
-  return new Promise((resolve, reject) => {
-    if (window.THREE && window.THREE.GLTFLoader) {
-      const loader = new window.THREE.GLTFLoader();
-      loader.load(url, resolve, p => setLoadProgress(Math.round(p.loaded/p.total*90)), reject);
-    } else {
-      const s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/loaders/GLTFLoader.js';
-      s.onload = () => {
-        const loader = new window.THREE.GLTFLoader();
-        loader.load(url, resolve, p => setLoadProgress(Math.round(p.loaded/p.total*90)), reject);
-      };
-      s.onerror = reject;
-      document.head.appendChild(s);
-    }
-  });
-}
-
-// ── Loading helpers ───────────────────────────────────────────────────────
-const badge = document.getElementById('selected-badge');
-function setLoadProgress(v) { document.getElementById('load-bar').style.width = v+'%'; }
-function setLoadMsg(m)      { document.getElementById('load-msg').textContent = m; }
-
-// ── Animate selection pulse ───────────────────────────────────────────────
-let pulse = 0;
-function pulseSelected() {
-  if (!selectedObj) return;
-  pulse += 0.05;
-  const mat = selectedObj.material;
-  if (mat && mat.emissive) {
-    mat.emissiveIntensity = 0.3 + Math.sin(pulse) * 0.15;
-  }
-}
 
 // ── Resize ────────────────────────────────────────────────────────────────
 window.addEventListener('resize', () => {
@@ -859,56 +740,38 @@ window.addEventListener('resize', () => {
 });
 
 // ── Render loop ───────────────────────────────────────────────────────────
+let pulse = 0;
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
-  pulseSelected();
+  if (selectedObj?.material?.emissive) {
+    pulse += 0.05;
+    selectedObj.material.emissiveIntensity = 0.3 + Math.sin(pulse) * 0.15;
+  }
   renderer.render(scene, camera);
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────
+function setLoadProgress(v) { document.getElementById('load-bar').style.width = v+'%'; }
+function setLoadMsg(m)       { document.getElementById('load-msg').textContent = m; }
+
 setLoadMsg('Setting up renderer…');
 setLoadProgress(20);
+
 setTimeout(async () => {
-  setLoadMsg('Loading your model…');
+  setLoadMsg('Loading Models/1room.glb…');
   setLoadProgress(40);
   try {
     const gltf = await loadGLBFromURL('Models/1room.glb');
-    clickableObjects = [];
-    modelRoot = gltf.scene;
-
-    // Auto-center
-    const box = new THREE.Box3().setFromObject(modelRoot);
-    const center = box.getCenter(new THREE.Vector3());
-    const size   = box.getSize(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z);
-    const scale  = 6 / maxDim;
-    modelRoot.scale.setScalar(scale);
-    modelRoot.position.sub(center.multiplyScalar(scale));
-    modelRoot.position.y = 0;
-
-    modelRoot.traverse(obj => {
-      if (obj.isMesh) {
-        obj.castShadow    = true;
-        obj.receiveShadow = true;
-        if (obj.name) clickableObjects.push(obj);
-      }
-    });
-
-    scene.add(modelRoot);
-    setLoadProgress(100);
-    setTimeout(() => document.getElementById('loading').classList.add('hidden'), 500);
-    animate();
+    setupModel(gltf);
   } catch(err) {
     console.warn('Could not load Models/1room.glb, falling back to demo:', err);
-    setLoadMsg('Building demo room…');
     buildDemoRoom();
-    animate();
   }
+  animate();
 }, 200);
 
-// Fade drop hint after 4s
-setTimeout(() => { dropHint.style.opacity = '0'; }, 4000);
+setTimeout(() => { dropHint.style.opacity = '0'; },    4000);
 setTimeout(() => { dropHint.style.display = 'none'; }, 5000);
 </script>
 </body>
