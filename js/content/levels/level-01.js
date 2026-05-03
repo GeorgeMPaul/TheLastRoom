@@ -307,7 +307,7 @@ export default {
     // Story-bible required clues: the cup residue (means of death
     // was here) and the rug impressions (someone else was here).
     // Both meshes are now CURRENT in level-01.glb.
-    requiredClues: ['clue-cup-residue', 'clue-rug-impressions'],
+    requiredClues: [],
     onWrong: { shake: true, disable: true },
   },
 

@@ -303,7 +303,7 @@ export default {
     // (Originally gated on clue-l2-donut as the second clue. The Donut
     // mesh was removed in the May-2026 GLB rebake; the laptop email is
     // the next-best load-bearing clue available.)
-    requiredClues: ['clue-l2-cup-residue', 'clue-l2-laptop'],
+    requiredClues: [],
     onWrong: { shake: true, disable: true },
   },
 
